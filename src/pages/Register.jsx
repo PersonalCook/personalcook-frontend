@@ -8,6 +8,7 @@ export default function Register() {
 
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
+  const [publicname, setPublicname] = useState("");
   const [birthdate, setBirthdate] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -29,6 +30,7 @@ export default function Register() {
         email,
         password,
         username,
+        publicname,
         birthdate,
       });
 
@@ -58,6 +60,13 @@ export default function Register() {
 
         {!success && (
           <>
+            <input
+              type = "text"
+              placeholder="Full Name"
+              className="border rounded p-3"
+              value={publicname}
+              onChange={(e) => setPublicname(e.target.value)}
+             />
             <input
               type="text"
               placeholder="Username"

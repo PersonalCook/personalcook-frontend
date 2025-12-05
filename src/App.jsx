@@ -1,28 +1,42 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import Navbar from "./components/Navbar";
 
 import Home from "./pages/Home";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
 import Explore from "./pages/Explore";
 import Feed from "./pages/Feed";
 import Search from "./pages/Search";
-import ProtectedRoute from "./ProtectedRoute";
+import Login from "./pages/Login";
+import Register from "./pages/Register";
+
+function AppLayout() {
+  const location = useLocation();
+
+  // če je login ali register → ne prikaži navbarja
+  const hideNavbar = location.pathname === "/login" || location.pathname === "/register";
+
+  return (
+    <>
+      {!hideNavbar && <Navbar />}
+
+      <div className={!hideNavbar ? "ml-56 p-6" : "p-6"}>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/explore" element={<Explore />} />
+          <Route path="/feed" element={<Feed />} />
+          <Route path="/search" element={<Search />} />
+
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+        </Routes>
+      </div>
+    </>
+  );
+}
 
 export default function App() {
   return (
     <BrowserRouter>
-      <Navbar />
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/register" element={<Register />} />
-
-        <Route path="/explore" element={<ProtectedRoute><Explore /></ProtectedRoute>} />
-        <Route path="/feed" element={<ProtectedRoute><Feed /></ProtectedRoute>} />
-        <Route path="/search" element={<ProtectedRoute><Search /></ProtectedRoute>} />
-      </Routes>
+      <AppLayout />
     </BrowserRouter>
   );
 }

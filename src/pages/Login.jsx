@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import userApi from "../api/user";
+import { mockUser } from "../mock"; 
 
 export default function Login() {
   const navigate = useNavigate();
@@ -13,19 +14,29 @@ export default function Login() {
     e.preventDefault();
     setError("");
 
+    // -----------------------------------------------------
+    /*
     try {
       const res = await userApi.post("/auth/login", {
         email,
         password,
       });
 
-      localStorage.setItem("token", res.data.token);
+      localStorage.setItem("token", res.data.access_token);
       localStorage.setItem("user_id", res.data.user_id);
 
       navigate("/explore");
     } catch (err) {
       setError("Napačen email ali geslo");
     }
+    */
+    // -----------------------------------------------------
+
+    // ✅ MOCK LOGIN — vedno uspešen
+    localStorage.setItem("token", mockUser.token);
+    localStorage.setItem("user", JSON.stringify(mockUser));
+
+    navigate("/explore");
   }
 
   return (
