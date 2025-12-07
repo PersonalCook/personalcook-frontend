@@ -184,7 +184,7 @@ export const mockSavedRecipes = [
   
     instructions: "Chop vegetables. Mix with chickpeas. Add dressing.",
     keywords: "salad, healthy, chickpeas",
-    img: "https://images.unsplash.com/photo-1568605114967-8130f3a36994",
+    img: "https://joyfoodsunshine.com/wp-content/uploads/2022/07/mediterranean-chickpea-salad-recipe-1x1-1.jpg",
     visibility: "public",
     category: "lunch"
   }
@@ -199,12 +199,12 @@ export const mockCarts = [
       {
         recipe_id: 101,
         recipe_name: "Crispy Chicken Tacos",
-        img: "https://via.placeholder.com/200"
+        img: "https://static01.nyt.com/images/2025/05/14/multimedia/kf-easy-chicken-tacos-gwfh/kf-easy-chicken-tacos-gwfh-mediumSquareAt3X.jpg"
       },
       {
         recipe_id: 104,
         recipe_name: "Creamy Garlic Pasta",
-        img: "https://via.placeholder.com/200"
+        img: "https://www.allrecipes.com/thmb/QiGptPjQB5mqSXGVxE4sLPMJs_4=/1500x0/filters:no_upscale():max_bytes(150000):strip_icc()/AR-269500-creamy-garlic-pasta-Beauties-2x1-bcd9cb83138849e4b17104a1cd51d063.jpg"
       }
     ],
     shopping_list: [
@@ -222,7 +222,7 @@ export const mockCarts = [
       {
         recipe_id: 105,
         recipe_name: "Mediterranean Chickpea Salad",
-        img: "https://via.placeholder.com/200"
+        img: "https://joyfoodsunshine.com/wp-content/uploads/2022/07/mediterranean-chickpea-salad-recipe-1x1-1.jpg"
       }
     ],
     shopping_list: [

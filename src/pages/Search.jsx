@@ -1,6 +1,7 @@
 import { useState, useContext } from "react";
 import { Link } from "react-router-dom";
 import { mockUsers, mockUser } from "../mock";
+import UserProfile from "./UserProfile";
 
 import { AuthContext } from "../context/AuthContext";
 

@@ -6,11 +6,11 @@ import {
 } from "@heroicons/react/24/outline";
 import { HeartIcon as HeartSolid } from "@heroicons/react/24/solid";
 import { BookmarkIcon as BookmarkSolid } from "@heroicons/react/24/solid";
+//TREBA DODAT API ZA ŠTETJE LAJKOV
 
 export default function RecipeDetailModal({
   recipe,
   onClose,
-  showCommentsPanel,
   isLiked,
   isSaved,
   onToggleLike,
@@ -26,7 +26,10 @@ export default function RecipeDetailModal({
     >
       <div
         className="bg-white rounded-xl shadow-2xl w-full max-w-5xl h-[85vh] overflow-hidden flex"
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.stopPropagation();
+        }}
+        
       >
         {/* LEFT PANEL */}
         <div className="flex-1 border-r border-gray-200 flex flex-col overflow-hidden">

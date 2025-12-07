@@ -10,16 +10,13 @@ export default function FilterSidebar({
   return (
     <aside className="w-72 bg-white border border-gray-200 rounded-3xl shadow-md flex flex-col overflow-hidden">
       
-      {/* HEADER */}
       <div className="flex items-center gap-2 px-4 py-4 bg-white border-b border-gray-200">
         <FunnelIcon className="h-5 w-5 text-gray-500" />
         <span className="font-semibold text-gray-700 tracking-tight">FILTER</span>
       </div>
 
-      {/* CONTENT */}
       <div className="flex-1 p-5 text-sm text-gray-700 flex flex-col gap-8">
         
-        {/* TOTAL TIME */}
         <div>
           <p className="font-semibold mb-2 text-gray-800">Total time</p>
 
@@ -35,7 +32,6 @@ export default function FilterSidebar({
           <p className="text-gray-500 mt-1">Up to {maxTime} minutes</p>
         </div>
 
-        {/* CATEGORY */}
         <div>
           <p className="font-semibold mb-3 text-gray-800">Category</p>
 

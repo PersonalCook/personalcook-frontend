@@ -12,12 +12,17 @@ import { BookmarkIcon as BookmarkSolid } from "@heroicons/react/24/solid";
 import { BookmarkIcon as BookmarkOutline } from "@heroicons/react/24/outline";
 
 import RecipeDetailModal from "../components/RecipeDetailModal";
+import CartModal from "../components/CartModal";
 
 
 export default function Feed() {
   const [selectedRecipe, setSelectedRecipe] = useState(null);
   const [savedRecipes, setSavedRecipes] = useState([]);
   const [likedRecipes, setLikedRecipes] = useState([]);
+  const [showCartModal, setShowCartModal] = useState(false);
+  const [activeCartRecipe, setActiveCartRecipe] = useState(null);
+
+
 
   function toggleSave(recipeId) {
     setSavedRecipes(prev =>
@@ -33,6 +38,16 @@ export default function Feed() {
         ? prev.filter(id => id !== recipeId)
         : [...prev, recipeId]
     );
+  }
+
+  function openCartModal(recipe) {
+    setActiveCartRecipe(recipe);
+    setShowCartModal(true);
+  }
+  
+  function closeCartModal() {
+    setShowCartModal(false);
+    setActiveCartRecipe(null);
   }
 
   const sortedFeed = [...mockFeedRecipes].sort(
@@ -107,8 +122,10 @@ export default function Feed() {
                     />
                   )}
 
-                  <ChatBubbleOvalLeftEllipsisIcon className="h-5 w-5 text-gray-400 hover:text-gray-600" />
-                  <ShoppingCartIcon className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                  <ChatBubbleOvalLeftEllipsisIcon className="h-5 w-5 text-gray-400 hover:text-gray-600"
+                  onClick={() => setSelectedRecipe(recipe)} />
+                  <ShoppingCartIcon className="h-5 w-5 text-gray-400 hover:text-gray-600"
+                  onClick={openCartModal} />
                 </div>
               </div>
 
@@ -128,8 +145,20 @@ export default function Feed() {
         <RecipeDetailModal
           recipe={selectedRecipe}
           onClose={() => setSelectedRecipe(null)}
+          isLiked={likedRecipes.includes(selectedRecipe.recipe_id)}
+          isSaved={savedRecipes.includes(selectedRecipe.recipe_id)}
+
+          onToggleLike={() => toggleLike(selectedRecipe.recipe_id)}
+          onToggleSave={() => toggleSave(selectedRecipe.recipe_id)}
+          onOpenCart={() => openCartModal(selectedRecipe)}
         />
       )}
+      {showCartModal && (
+          <CartModal
+            recipe={activeCartRecipe}
+            onClose={closeCartModal}
+          />
+        )}
     </div>
   );
 }

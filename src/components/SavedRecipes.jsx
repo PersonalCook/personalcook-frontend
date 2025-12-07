@@ -2,9 +2,10 @@ import { useState, useMemo } from "react";
 import SearchBar from "./SearchBar";
 import FilterSidebar from "./FilterSideBar";
 import RecipeCard from "./RecipeCard";
-import CartModal from "./CartModal";      // <-- dodaj
+import CartModal from "./CartModal";
+import RecipeDetailModal from "./RecipeDetailModal";
 
-export default function SavedRecipes({ recipes, onOpenRecipe }) {
+export default function SavedRecipes({ recipes }) {
 
   // SEARCH + FILTERING
   const [search, setSearch] = useState("");
@@ -12,15 +13,14 @@ export default function SavedRecipes({ recipes, onOpenRecipe }) {
   const [selectedCategories, setSelectedCategories] = useState([]);
   const categories = ["Breakfast", "Lunch", "Dinner", "Snack", "Dessert"];
 
-  // LIKE + SAVE
+  // LIKE STATE (save je vedno true!)
   const [likedRecipes, setLikedRecipes] = useState([]);
-  const [savedRecipes, setSavedRecipes] = useState([]);
 
-  // CART MODAL STATE
+  // CART MODAL
   const [showCartModal, setShowCartModal] = useState(false);
   const [activeCartRecipe, setActiveCartRecipe] = useState(null);
 
-  // COMMENTS PANEL
+  // DETAIL MODAL
   const [selectedRecipe, setSelectedRecipe] = useState(null);
 
   // -------------------------
@@ -30,9 +30,9 @@ export default function SavedRecipes({ recipes, onOpenRecipe }) {
     );
   }
 
-  function timeToMinutes(timeStr) {
-    if (!timeStr) return 999;
-    const [h, m, s] = timeStr.split(":").map(Number);
+  function timeToMinutes(t) {
+    if (!t) return 999;
+    const [h, m, s] = t.split(":").map(Number);
     return h * 60 + m + Math.floor((s || 0) / 60);
   }
 
@@ -53,58 +53,57 @@ export default function SavedRecipes({ recipes, onOpenRecipe }) {
     return items;
   }, [search, maxTime, selectedCategories, recipes]);
 
-  // -------------------------
   function toggleLike(recipeId) {
     setLikedRecipes(prev =>
-      prev.includes(recipeId) ? prev.filter(id => id !== recipeId) : [...prev, recipeId]
+      prev.includes(recipeId)
+        ? prev.filter(id => id !== recipeId)
+        : [...prev, recipeId]
     );
   }
 
-  function toggleSave(recipeId) {
-    setSavedRecipes(prev =>
-      prev.includes(recipeId) ? prev.filter(id => id !== recipeId) : [...prev, recipeId]
-    );
-  }
-
-  // ---------- CART MODAL ----------
   function openCartModal(recipe) {
     setActiveCartRecipe(recipe);
     setShowCartModal(true);
   }
 
   function closeCartModal() {
-    setShowCartModal(false);
     setActiveCartRecipe(null);
+    setShowCartModal(false);
   }
 
-  // ---------- COMMENTS PANEL ----------
-  function openComments(recipe) {
-    setSelectedRecipe(recipe);
+  function openDetail(recipe) {
+    setSelectedRecipe({
+      ...recipe,
+      isLiked: likedRecipes.includes(recipe.recipe_id),
+      isSaved: true, // always saved
+    });
   }
 
-  function closeComments() {
+  function closeDetail() {
     setSelectedRecipe(null);
   }
 
-  // -------------------------
 
   return (
     <div className="flex gap-6 px-8 py-6">
 
-      {/* LEFT SIDE */}
       <div className="flex-1 flex flex-col gap-6">
         <SearchBar search={search} setSearch={setSearch} />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+
           {filteredRecipes.map(r => (
             <RecipeCard
               key={r.recipe_id}
               recipe={r}
-              onOpen={() => onOpenRecipe(r)}
-              onToggleSave={() => toggleSave(r.recipe_id)}
+
+              onOpen={() => openDetail(r)}
+
+              onToggleSave={() => {}} // saved = always true
               onToggleLike={() => toggleLike(r.recipe_id)}
               onOpenCart={() => openCartModal(r)}
-              onOpenComments={() => onOpenRecipe(r)}
+              onOpenComments={() => openDetail(r)}
+
               isSaved={true}
               isLiked={likedRecipes.includes(r.recipe_id)}
             />
@@ -118,7 +117,6 @@ export default function SavedRecipes({ recipes, onOpenRecipe }) {
         </div>
       </div>
 
-      {/* RIGHT SIDE — FILTERS */}
       <FilterSidebar
         maxTime={maxTime}
         setMaxTime={setMaxTime}
@@ -127,18 +125,24 @@ export default function SavedRecipes({ recipes, onOpenRecipe }) {
         toggleCategory={toggleCategory}
       />
 
-      {/* 🚛 CART MODAL */}
       {showCartModal && (
         <CartModal recipe={activeCartRecipe} onClose={closeCartModal} />
       )}
 
-      {/* 💬 COMMENTS PANEL */}
       {selectedRecipe && (
-        <CommentsPanel recipe={selectedRecipe} onClose={closeComments} />
+        <RecipeDetailModal
+          recipe={selectedRecipe}
+          onClose={closeDetail}
+
+          isLiked={likedRecipes.includes(selectedRecipe.recipe_id)}
+          isSaved={true}
+
+          onToggleLike={() => toggleLike(selectedRecipe.recipe_id)}
+          onToggleSave={() => {}}
+          onOpenCart={() => openCartModal(selectedRecipe)}
+        />
       )}
 
     </div>
   );
 }
-
-

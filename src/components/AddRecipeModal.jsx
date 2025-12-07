@@ -1,4 +1,5 @@
 import { useState } from "react";
+//import recipeApi from "../api/recipe";
 
 export default function AddRecipeModal({ onClose, onSubmit }) {
 
@@ -9,8 +10,7 @@ export default function AddRecipeModal({ onClose, onSubmit }) {
   const [servings, setServings] = useState("");
   const [instructions, setInstructions] = useState("");
   const [keywords, setKeywords] = useState("");
-  const [img, setImg] = useState("");
-
+  const [imageFile, setImageFile] = useState(null);
   const [category, setCategory] = useState("breakfast");
   const [visibility, setVisibility] = useState("public");
 
@@ -53,13 +53,53 @@ export default function AddRecipeModal({ onClose, onSubmit }) {
       })),
       instructions,
       keywords,
-      img,
+      imageFile,
       visibility,
       category,
     };
 
-    onSubmit(payload);
+    onSubmit(payload); 
   }
+
+/*   async function handleSubmit(e) {
+    e.preventDefault();
+
+    try {
+      const formData = new FormData();
+
+      formData.append("recipe_name", recipeName);
+      formData.append("description", description);
+      formData.append("cooking_time", normalizeTime(cookingTime));
+      formData.append("total_time", normalizeTime(totalTime));
+      formData.append("servings", Number(servings));
+      formData.append("instructions", instructions);
+      formData.append("keywords", keywords);
+      formData.append("visibility", visibility);
+      formData.append("category", category);
+
+      ingredients.forEach((ing, i) => {
+        formData.append(`ingredients[${i}][name]`, ing.name);
+        formData.append(
+          `ingredients[${i}][amount]`,
+          Number(ing.amount)
+        );
+        formData.append(`ingredients[${i}][unit]`, ing.unit);
+      });
+
+      if (imageFile) {
+        formData.append("image", imageFile); 
+      }
+      await recipeApi.post("/recipes", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      onClose(); 
+    } catch (err) {
+      console.error("Error publishing recipe:", err);
+    }
+  } */
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
@@ -76,7 +116,6 @@ export default function AddRecipeModal({ onClose, onSubmit }) {
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
 
-          {/* NAME */}
           <input
             type="text"
             placeholder="Recipe name"
@@ -86,7 +125,6 @@ export default function AddRecipeModal({ onClose, onSubmit }) {
             required
           />
 
-          {/* DESCRIPTION */}
           <textarea
             placeholder="Description"
             className="border rounded-lg px-3 py-2"
@@ -95,8 +133,6 @@ export default function AddRecipeModal({ onClose, onSubmit }) {
             onChange={(e) => setDescription(e.target.value)}
           />
 
-
-          {/* COOKING TIME */}
           <label className="font-semibold text-gray-700">Cooking Time</label>
           <input
             type="time"
@@ -106,7 +142,6 @@ export default function AddRecipeModal({ onClose, onSubmit }) {
             required
           />
 
-          {/* TOTAL TIME */}
           <label className="font-semibold text-gray-700">Total Time</label>
           <input
             type="time"
@@ -116,8 +151,6 @@ export default function AddRecipeModal({ onClose, onSubmit }) {
             required
           />
 
-
-          {/* SERVINGS */}
           <input
             type="number"
             min="1"
@@ -128,7 +161,6 @@ export default function AddRecipeModal({ onClose, onSubmit }) {
             required
           />
 
-          {/* INGREDIENTS */}
           <div>
             <label className="font-semibold">Ingredients:</label>
 
@@ -195,7 +227,6 @@ export default function AddRecipeModal({ onClose, onSubmit }) {
             </button>
           </div>
 
-          {/* INSTRUCTIONS */}
           <textarea
             placeholder="Instructions"
             className="border rounded-lg px-3 py-2"
@@ -205,7 +236,6 @@ export default function AddRecipeModal({ onClose, onSubmit }) {
             required
           />
 
-          {/* KEYWORDS */}
           <input
             type="text"
             placeholder="Keywords (optional)"
@@ -214,14 +244,20 @@ export default function AddRecipeModal({ onClose, onSubmit }) {
             onChange={(e) => setKeywords(e.target.value)}
           />
 
-          {/* IMAGE URL */}
+          <label className="font-semibold text-gray-700">Recipe Image</label>
           <input
-            type="text"
-            placeholder="Image URL (optional)"
+            type="file"
+            accept="image/*"
             className="border rounded-lg px-3 py-2"
-            value={img}
-            onChange={(e) => setImg(e.target.value)}
+            onChange={(e) => setImageFile(e.target.files[0])}
+            required
           />
+
+          {imageFile && (
+            <p className="text-sm text-gray-600">
+              Selected: {imageFile.name}
+            </p>
+          )}
 
           <button
             type="submit"
@@ -234,3 +270,4 @@ export default function AddRecipeModal({ onClose, onSubmit }) {
     </div>
   );
 }
+

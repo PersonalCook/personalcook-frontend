@@ -1,12 +1,13 @@
 import { NavLink, useNavigate } from "react-router-dom";
+import { useContext } from "react";
+import { AuthContext } from "../context/AuthContext";
 
 export default function Navbar() {
   const navigate = useNavigate();
-  const token = localStorage.getItem("token");
+  const { user, logout } = useContext(AuthContext);
 
   function handleLogout() {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user_id");
+    logout();
     navigate("/login");
   }
 
@@ -20,14 +21,13 @@ export default function Navbar() {
         px-6 py-8
       "
     >
-      {/* LOGO */}
       <img 
           src="/ChatGPT Image Dec 5, 2025 at 12_31_14 PM.png" 
           alt="PersonalCook Logo"
           className="w-40 mx-auto"
         />
 
-      {/* NAVIGATION — slightly lower */}
+
       <nav className="flex flex-col gap-4 text-gray-700 text-lg mt-14">
         <SidebarLink to="/" label="Home" />
         <SidebarLink to="/explore" label="Explore" />
@@ -35,8 +35,7 @@ export default function Navbar() {
         <SidebarLink to="/search" label="Search Profiles" />
       </nav>
 
-      {/* LOGOUT at the bottom */}
-      {token && (
+      {user && (
         <button
           onClick={handleLogout}
           className="mt-auto text-red-600 hover:text-red-800 text-left"

@@ -7,6 +7,9 @@ import Feed from "./pages/Feed";
 import Search from "./pages/Search";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import UserProfile from "./pages/UserProfile";
+
+
 
 function AppLayout() {
   const location = useLocation();
@@ -24,7 +27,7 @@ function AppLayout() {
           <Route path="/explore" element={<Explore />} />
           <Route path="/feed" element={<Feed />} />
           <Route path="/search" element={<Search />} />
-
+          <Route path="/profile/:id" element={<UserProfile />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
         </Routes>

@@ -10,6 +10,7 @@ import ShoppingCartGrid from "../components/ShoppingCartGrid";
 import AddRecipeModal from "../components/AddRecipeModal";
 import RecipeDetailModal from "../components/RecipeDetailModal";
 import ShoppingCartDetail from "../components/ShoppingCartDetail";
+import CartModal from "../components/CartModal"; // ✅ MANJKAL TA IMPORT
 
 // Mock data
 import { mockRecipes, mockSavedRecipes, mockCarts } from "../mock";
@@ -23,10 +24,16 @@ export default function Home() {
   const [selectedRecipe, setSelectedRecipe] = useState(null);
   const [selectedCart, setSelectedCart] = useState(null);
 
+  const [likedRecipes, setLikedRecipes] = useState([]);
+  const [savedRecipes, setSavedRecipes] = useState([]);
+
+  const [showCartModal, setShowCartModal] = useState(false);
+  const [activeCartRecipe, setActiveCartRecipe] = useState(null);
+
   const useMock = import.meta.env.VITE_USE_MOCK_API === "true";
 
   const myRecipes = useMock ? mockRecipes : [];
-  const savedRecipes = useMock ? mockSavedRecipes : [];
+  const savedRecipesShow = useMock ? mockSavedRecipes : [];
   const shoppingCarts = useMock ? mockCarts : [];
 
   async function handleCreateRecipe(data) {
@@ -37,6 +44,33 @@ export default function Home() {
     }
   }
 
+  function toggleLike(recipeId) {
+    setLikedRecipes(prev =>
+      prev.includes(recipeId)
+        ? prev.filter(id => id !== recipeId)
+        : [...prev, recipeId]
+    );
+  }
+
+  function toggleSave(recipeId) {
+    setSavedRecipes(prev =>
+      prev.includes(recipeId)
+        ? prev.filter(id => id !== recipeId)
+        : [...prev, recipeId]
+    );
+  }
+
+  // ✅ CART MODAL HANDLERS
+  function openCartModal(recipe) {
+    setActiveCartRecipe(recipe);
+    setShowCartModal(true);
+  }
+
+  function closeCartModal() {
+    setShowCartModal(false);
+    setActiveCartRecipe(null);
+  }
+
   return (
     <div className="px-8 py-6">
 
@@ -45,9 +79,7 @@ export default function Home() {
         {["myRecipes", "saved", "carts"].map((tab) => (
           <button
             key={tab}
-            className={
-              activeTab === tab ? "underline underline-offset-4" : ""
-            }
+            className={activeTab === tab ? "underline underline-offset-4" : ""}
             onClick={() => setActiveTab(tab)}
           >
             {tab === "myRecipes" && "My Recipes"}
@@ -86,8 +118,9 @@ export default function Home() {
         {/* SAVED */}
         {activeTab === "saved" && (
           <SavedRecipes
-            recipes={savedRecipes}
+            recipes={savedRecipesShow}
             onOpenRecipe={setSelectedRecipe}
+            onOpenCart={openCartModal}   // ✅ ZDAJ PRAVILNO VEZANO
           />
         )}
 
@@ -113,6 +146,11 @@ export default function Home() {
         <RecipeDetailModal
           recipe={selectedRecipe}
           onClose={() => setSelectedRecipe(null)}
+          isLiked={likedRecipes.includes(selectedRecipe.recipe_id)}
+          isSaved={savedRecipes.includes(selectedRecipe.recipe_id)}
+          onToggleLike={() => toggleLike(selectedRecipe.recipe_id)}
+          onToggleSave={() => toggleSave(selectedRecipe.recipe_id)}
+          onOpenCart={() => openCartModal(selectedRecipe)}
         />
       )}
 
@@ -122,7 +160,13 @@ export default function Home() {
           onClose={() => setSelectedCart(null)}
         />
       )}
+
+      {showCartModal && (
+        <CartModal
+          recipe={activeCartRecipe}
+          onClose={closeCartModal}
+        />
+      )}
     </div>
   );
 }
-

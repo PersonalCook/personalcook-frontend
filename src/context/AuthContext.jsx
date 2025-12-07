@@ -34,12 +34,41 @@ export function AuthProvider({ children }) {
     const useMock = import.meta.env.VITE_USE_MOCK_API === "true";
     if (useMock) {
       setUser(mockUser);
+      setLoading(false);
       return;
     }
   }, []);
 
+  async function login(email, password) {
+    /*
+    const res = await userApi.post("/auth/login", {
+      email,
+      password,
+    });
+
+    localStorage.setItem("token", res.data.token);
+    localStorage.setItem("user_id", res.data.user_id);
+
+    const profile = await userApi.get("/profile/");
+    setUser(profile.data);
+    */
+
+    setUser(mockUser);
+  }
+
+  function logout() {
+    /*
+    localStorage.removeItem("token");
+    localStorage.removeItem("user_id");
+    */
+
+    setUser(null);  
+  }
+
+
+
   return (
-    <AuthContext.Provider value={{ user, setUser, loading }}>
+    <AuthContext.Provider value={{ user, setUser, loading, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
