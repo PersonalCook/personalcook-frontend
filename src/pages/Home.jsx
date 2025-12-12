@@ -10,13 +10,15 @@ import ShoppingCartGrid from "../components/ShoppingCartGrid";
 import AddRecipeModal from "../components/AddRecipeModal";
 import RecipeDetailModal from "../components/RecipeDetailModal";
 import ShoppingCartDetail from "../components/ShoppingCartDetail";
-import CartModal from "../components/CartModal"; // ✅ MANJKAL TA IMPORT
+import CartModal from "../components/CartModal";
 
 // Mock data
 import { mockRecipes, mockSavedRecipes, mockCarts } from "../mock";
 
+
 export default function Home() {
-  const { user } = useContext(AuthContext);
+  const { user, loading } = useContext(AuthContext);
+  if (loading || !user) return <div>Loading...</div>;
 
   const [activeTab, setActiveTab] = useState("myRecipes");
   const [showModal, setShowModal] = useState(false);
@@ -35,6 +37,8 @@ export default function Home() {
   const myRecipes = useMock ? mockRecipes : [];
   const savedRecipesShow = useMock ? mockSavedRecipes : [];
   const shoppingCarts = useMock ? mockCarts : [];
+
+  
 
   async function handleCreateRecipe(data) {
     try {

@@ -37,6 +37,7 @@ export function AuthProvider({ children }) {
       setLoading(false);
       return;
     }
+    setLoading(false);
   }, []);
 
   async function login(email, password) {

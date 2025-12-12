@@ -5,7 +5,7 @@ import RecipeCard from "../components/RecipeCard";
 import RecipeDetailModal from "../components/RecipeDetailModal";
 import CartModal from "../components/CartModal";
 import SearchBar from "../components/SearchBar";
-import FilterSidebar from "../components/FilterSideBar";
+import FilterSidebar from "../components/FilterSidebar";
 
 // import searchApi from "../api/searchApi";
 // import socialApi from "../api/socialApi";
