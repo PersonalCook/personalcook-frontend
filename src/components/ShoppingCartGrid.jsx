@@ -1,21 +1,56 @@
 import { useState } from "react";
+import shoppingApi from "../api/shopping";
 
-export default function ShoppingCartGrid({ carts, onOpenCart, onCreateCart }) {
+export default function ShoppingCartGrid({ carts, onOpenCart, onCreateCart, onDeleteCart }) {
   const [isCreating, setIsCreating] = useState(false);
   const [newCartName, setNewCartName] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
 
-  function handleCreate() {
+  async function handleCreateNewCart() {
     const name =
       newCartName.trim() !== ""
         ? newCartName
-        : `New cart #${Math.floor(Math.random() * 1000)}`;
+        : `New cart #${carts.length + 1}`;
 
-    onCreateCart(name);
+    try {
+      setSubmitting(true);
 
-    setNewCartName("");
-    setIsCreating(false);
+      const res = await shoppingApi.post("/cart", {
+        name,
+        recipe_ids: [],
+      });
+
+      const createdCart = res?.data ?? { name, recipe_ids: [] };
+      onCreateCart?.(createdCart);
+      setIsCreating(false);
+      setNewCartName("");
+      setError(null);
+    } catch (err) {
+      console.error("Error creating cart:", err);
+      setError("Failed to create cart.");
+    } finally {
+      setSubmitting(false);
+    }
   }
 
+  async function handleDeleteCart(cart) {
+    if (!cart?.cart_id) return;
+    try {
+      setDeletingId(cart.cart_id);
+
+      await shoppingApi.delete(`/cart/${cart.cart_id}`);
+
+      onDeleteCart?.(cart);
+      setError(null);
+    } catch (err) {
+      console.error("Error deleting cart:", err);
+      setError("Failed to delete cart.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
   return (
     <div className="mt-6 space-y-2">
 
@@ -42,7 +77,8 @@ export default function ShoppingCartGrid({ carts, onOpenCart, onCreateCart }) {
           />
 
           <button
-            onClick={handleCreate}
+            onClick={handleCreateNewCart}
+            disabled={submitting}
             className="text-sm text-blue-600 font-semibold"
           >
             Create
@@ -57,6 +93,12 @@ export default function ShoppingCartGrid({ carts, onOpenCart, onCreateCart }) {
           >
             Cancel
           </button>
+        </div>
+      )}
+
+      {error && (
+        <div className="text-sm text-red-500 px-1">
+          {error}
         </div>
       )}
 
@@ -88,7 +130,20 @@ export default function ShoppingCartGrid({ carts, onOpenCart, onCreateCart }) {
               </p>
             </div>
 
-            <span className="text-gray-400 text-lg">{">"}</span>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDeleteCart(cart);
+                }}
+                disabled={deletingId === cart.cart_id}
+                className="text-red-500 hover:text-red-700 text-sm disabled:opacity-50"
+              >
+                {deletingId === cart.cart_id ? "..." : "X"}
+              </button>
+
+              <span className="text-gray-400 text-lg">{">"}</span>
+            </div>
           </div>
         );
       })}

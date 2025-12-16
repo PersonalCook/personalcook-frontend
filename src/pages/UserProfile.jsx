@@ -5,7 +5,13 @@ import recipeApi from "../api/recipe";
 import RecipeGridMy from "../components/RecipeGridMy";
 import RecipeDetailModal from "../components/RecipeDetailModal";
 import CartModal from "../components/CartModal";
-import { normalizeRecipe, normalizeRecipes } from "../utils/normalizeRecipe";
+import {
+  normalizeRecipes,
+  hydrateAuthors,
+  hydrateLikes,
+  hydrateSaved,
+  hydrateLikeCounts,
+} from "../utils/normalizeRecipe";
 
 export default function UserProfile() {
   const { id } = useParams();
@@ -27,8 +33,25 @@ export default function UserProfile() {
           recipeApi.get(`/recipes/user/${id}`),
         ]);
         if (!isMounted) return;
+
+        const normalized = normalizeRecipes(r.data || []);
+        const withAuthors = await hydrateAuthors(normalized);
+        const withLikes = await hydrateLikes(withAuthors);
+        const withSaved = await hydrateSaved(withLikes);
+        const withCounts = await hydrateLikeCounts(withSaved);
+
         setUser(u.data);
-        setRecipes(normalizeRecipes(r.data || []));
+        setRecipes(withCounts);
+        setLikedRecipes(
+          withCounts
+            .filter((rec) => rec.isLiked)
+            .map((rec) => rec.recipe_id ?? rec.id)
+        );
+        setSavedRecipes(
+          withCounts
+            .filter((rec) => rec.isSaved)
+            .map((rec) => rec.recipe_id ?? rec.id)
+        );
         setError(null);
       } catch (err) {
         console.error("Failed to load profile", err);
@@ -41,22 +64,44 @@ export default function UserProfile() {
     };
   }, [id]);
 
+  const getId = (r) => r?.recipe_id ?? r?.id ?? r;
+
   if (error) return <p className="p-6 text-red-600">{error}</p>;
   if (!user) return <p className="p-6">Loading...</p>;
 
   function toggleLike(recipeId) {
+    const targetId = getId(recipeId);
+    if (!targetId) return;
     setLikedRecipes((prev) =>
-      prev.includes(recipeId)
-        ? prev.filter((id) => id !== recipeId)
-        : [...prev, recipeId]
+      prev.includes(targetId)
+        ? prev.filter((id) => id !== targetId)
+        : [...prev, targetId]
+    );
+    setRecipes((prev) =>
+      prev.map((r) =>
+        getId(r) === targetId ? { ...r, isLiked: !r.isLiked } : r
+      )
+    );
+    setSelectedRecipe((prev) =>
+      prev && getId(prev) === targetId ? { ...prev, isLiked: !prev.isLiked } : prev
     );
   }
 
   function toggleSave(recipeId) {
+    const targetId = getId(recipeId);
+    if (!targetId) return;
     setSavedRecipes((prev) =>
-      prev.includes(recipeId)
-        ? prev.filter((id) => id !== recipeId)
-        : [...prev, recipeId]
+      prev.includes(targetId)
+        ? prev.filter((id) => id !== targetId)
+        : [...prev, targetId]
+    );
+    setRecipes((prev) =>
+      prev.map((r) =>
+        getId(r) === targetId ? { ...r, isSaved: !r.isSaved } : r
+      )
+    );
+    setSelectedRecipe((prev) =>
+      prev && getId(prev) === targetId ? { ...prev, isSaved: !prev.isSaved } : prev
     );
   }
   function openCartModal(recipe) {
@@ -92,10 +137,10 @@ export default function UserProfile() {
         <RecipeDetailModal
           recipe={selectedRecipe}
           onClose={() => setSelectedRecipe(null)}
-          isLiked={likedRecipes.includes(selectedRecipe.recipe_id)}
-          isSaved={savedRecipes.includes(selectedRecipe.recipe_id)}
-          onToggleLike={() => toggleLike(selectedRecipe.recipe_id)}
-          onToggleSave={() => toggleSave(selectedRecipe.recipe_id)}
+          isLiked={likedRecipes.includes(getId(selectedRecipe))}
+          isSaved={savedRecipes.includes(getId(selectedRecipe))}
+          onToggleLike={() => toggleLike(getId(selectedRecipe))}
+          onToggleSave={() => toggleSave(getId(selectedRecipe))}
           onOpenCart={() => openCartModal(selectedRecipe)}
         />
       )}

@@ -23,7 +23,7 @@ export default function FilterSidebar({
           <input
             type="range"
             min="5"
-            max="180"
+            max="600"
             value={maxTime}
             onChange={(e) => setMaxTime(Number(e.target.value))}
             className="w-full accent-blue-500"

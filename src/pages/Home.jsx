@@ -161,6 +161,37 @@ export default function Home() {
     setActiveCartRecipe(null);
   }
 
+  function handleCreateCart(cart) {
+    if (!cart) return;
+    setShoppingCarts((prev) => [cart, ...prev]);
+  }
+
+  function handleAddToExistingCart(cartId, recipe) {
+    if (!cartId || !recipe) return;
+    setShoppingCarts((prev) =>
+      prev.map((c) =>
+        c.cart_id === cartId
+          ? {
+              ...c,
+              recipe_ids: Array.from(
+                new Set([...(c.recipe_ids || []), recipe.recipe_id])
+              ),
+            }
+          : c
+      )
+    );
+  }
+
+  function handleDeleteCart(cart) {
+    if (!cart?.cart_id) return;
+    setShoppingCarts((prev) =>
+      prev.filter((c) => c.cart_id !== cart.cart_id)
+    );
+    if (selectedCart?.cart_id === cart.cart_id) {
+      setSelectedCart(null);
+    }
+  }
+
   if (loading) return <div>Loading...</div>;
   if (!user)
     return (
@@ -237,6 +268,8 @@ export default function Home() {
           <ShoppingCartGrid
             carts={shoppingCarts}
             onOpenCart={setSelectedCart}
+            onCreateCart={handleCreateCart}
+            onDeleteCart={handleDeleteCart}
           />
         )}
       </div>
@@ -272,6 +305,8 @@ export default function Home() {
         <CartModal
           recipe={activeCartRecipe}
           onClose={closeCartModal}
+          onCreateCart={handleCreateCart}
+          onAddToExistingCart={handleAddToExistingCart}
         />
       )}
     </div>
