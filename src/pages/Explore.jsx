@@ -1,16 +1,27 @@
-import { useState, useMemo, useEffect } from "react";
-import { mockFeedRecipes } from "../mock";
+import { useState, useMemo, useEffect, useContext } from "react";
 
 import RecipeCard from "../components/RecipeCard";
 import RecipeDetailModal from "../components/RecipeDetailModal";
 import CartModal from "../components/CartModal";
 import SearchBar from "../components/SearchBar";
-import FilterSidebar from "../components/FilterSideBar";
+import FilterSidebar from "../components/FilterSidebar";
 
-// import searchApi from "../api/searchApi";
-// import socialApi from "../api/socialApi";
+import searchApi from "../api/search";
+import socialApi from "../api/social";
+import recipeApi from "../api/recipe";
+import {
+  normalizeRecipe,
+  normalizeRecipes,
+  hydrateMissingImages,
+  hydrateAuthors,
+  hydrateLikes,
+  hydrateLikeCounts,
+  hydrateSaved
+} from "../utils/normalizeRecipe";
+import { AuthContext } from "../context/AuthContext";
 
 export default function Explore() {
+  const { user } = useContext(AuthContext);
   const [search, setSearch] = useState("");
   const [maxTime, setMaxTime] = useState(60);
   const [selectedCategories, setSelectedCategories] = useState([]);
@@ -24,132 +35,179 @@ export default function Explore() {
 
   const toggleCategory = (cat) => {
     setSelectedCategories((prev) =>
-      prev.includes(cat)
-        ? prev.filter((c) => c !== cat)
-        : [...prev, cat]
+      prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]
     );
   };
 
-
   useEffect(() => {
-    setRecipes(
-      mockFeedRecipes.map(r => ({
-        ...r,
-        id: r.recipe_id,
-        total_time: 30,
-        category: "Lunch",
-        is_liked: false,
-        is_saved: false,
-        likes: 0,
-        comments: []
-      }))
-    );
-
-    return;
-
-    /* ✅ BACKEND MODE – SAMO ODKOMENTIRAŠ
     async function fetchExplore() {
-      const res = await searchApi.get("/search/explore", {
-        params: {
-          q: search || undefined,
-          category: selectedCategories[0] || undefined,
-          max_time: maxTime || undefined,
-        },
-      });
-
-      const data = res.data.results.map(r => ({
-        id: r.id,
-        ...r.recipe
-      }));
-
-      setRecipes(data);
+      try {
+        const res = await searchApi.get("/search/explore", {
+          params: {
+            q: search || undefined,
+            category:
+              selectedCategories.length === 1
+                ? selectedCategories[0].toLowerCase()
+                : undefined,
+            max_time: maxTime || undefined,
+          },
+        });
+        const data = normalizeRecipes(res.data?.results || []);
+        const withAuthors = await hydrateAuthors(data);
+        const baseSocial = await hydrateLikeCounts(withAuthors);
+        const withSocial = user
+          ? await hydrateSaved(await hydrateLikes(baseSocial))
+          : baseSocial.map((r) => ({ ...r, isLiked: false, isSaved: false }));
+        const withImages = await hydrateMissingImages(withSocial, async (id) => {
+          const detail = await recipeApi.get(`/recipes/${id}`);
+          return detail.data;
+        });
+        console.log("Explore fetched recipes", withImages);
+        setRecipes(withImages);
+      } catch (err) {
+        console.error("Failed to load explore recipes", err);
+        setRecipes([]);
+      }
     }
 
     fetchExplore();
-    */
-  }, [search, selectedCategories, maxTime]);
+  }, [search, selectedCategories, maxTime, user]);
 
   async function toggleLike(recipeId) {
-    setRecipes(prev =>
-      prev.map(r =>
+    if (!user) {
+      alert("Please log in to like recipes.");
+      return;
+    }
+    const current = recipes.find((r) => r.id === recipeId);
+    const currentLikeId = current?.like_id;
+    setRecipes((prev) =>
+      prev.map((r) =>
         r.id === recipeId
           ? {
               ...r,
-              is_liked: !r.is_liked,
-              likes: r.is_liked ? r.likes - 1 : r.likes + 1
+              isLiked: !r.isLiked,
+              like_id: r.isLiked ? null : r.like_id,
             }
           : r
       )
     );
 
-    setSelectedRecipe(prev =>
+    setSelectedRecipe((prev) =>
       prev && prev.id === recipeId
         ? {
             ...prev,
-            is_liked: !prev.is_liked,
-            likes: prev.is_liked ? prev.likes - 1 : prev.likes + 1
+            isLiked: !prev.isLiked,
+            like_id: prev.isLiked ? null : prev.like_id,
           }
         : prev
     );
 
-    /* ✅ BACKEND – SAMO ODKOMENTIRAŠ
-    if (recipes.find(r => r.id === recipeId)?.is_liked) {
-      await socialApi.delete(`/likes/${likeId}`);
-    } else {
-      await socialApi.post(`/likes/${recipeId}`);
+    try {
+      if (current?.isLiked && currentLikeId) {
+        await socialApi.delete(`/likes/${currentLikeId}`);
+      } else {
+        const res = await socialApi.post(`/likes/${recipeId}`);
+        const newLikeId = res?.data?.like_id ?? res?.data?.id ?? null;
+        if (newLikeId) {
+          setRecipes((prev) =>
+            prev.map((r) =>
+              r.id === recipeId ? { ...r, like_id: newLikeId } : r
+            )
+          );
+          setSelectedRecipe((prev) =>
+            prev && prev.id === recipeId ? { ...prev, like_id: newLikeId } : prev
+          );
+        }
+      }
+      // Refresh like count from API
+      const target =
+        recipes.find((r) => r.id === recipeId) ||
+        selectedRecipe ||
+        current ||
+        null;
+      if (target) {
+        const [withCount] = await hydrateLikeCounts([target]);
+        if (withCount) {
+          setRecipes((prev) =>
+            prev.map((r) =>
+              r.id === recipeId ? { ...r, likes: withCount.likes } : r
+            )
+          );
+          setSelectedRecipe((prev) =>
+            prev && prev.id === recipeId
+              ? { ...prev, likes: withCount.likes }
+              : prev
+          );
+        }
+      }
+    } catch (err) {
+      console.error("Like toggle failed", err);
     }
-    */
   }
 
   async function toggleSave(recipeId) {
-    setRecipes(prev =>
-      prev.map(r =>
+    if (!user) {
+      alert("Please log in to save recipes.");
+      return;
+    }
+    const current = recipes.find((r) => r.id === recipeId);
+    const currentSavedId = current?.saved_id;
+    setRecipes((prev) =>
+      prev.map((r) =>
         r.id === recipeId
-          ? { ...r, is_saved: !r.is_saved }
+          ? { ...r, isSaved: !r.isSaved, saved_id: r.isSaved ? null : r.saved_id }
           : r
       )
     );
 
-    setSelectedRecipe(prev =>
+    setSelectedRecipe((prev) =>
       prev && prev.id === recipeId
-        ? { ...prev, is_saved: !prev.is_saved }
+        ? { ...prev, isSaved: !prev.isSaved, saved_id: prev.isSaved ? null : prev.saved_id }
         : prev
     );
 
-    /* ✅ BACKEND – SAMO ODKOMENTIRAŠ
-    if (recipes.find(r => r.id === recipeId)?.is_saved) {
-      await socialApi.delete(`/saved/${savedId}`);
-    } else {
-      await socialApi.post(`/saved/${recipeId}`);
+    try {
+      if (current?.isSaved && currentSavedId) {
+        await socialApi.delete(`/saved/${currentSavedId}`);
+      } else {
+        const res = await socialApi.post(`/saved/${recipeId}`);
+        const newSavedId = res?.data?.saved_id ?? res?.data?.id ?? null;
+        if (newSavedId) {
+          setRecipes((prev) =>
+            prev.map((r) =>
+              r.id === recipeId ? { ...r, saved_id: newSavedId } : r
+            )
+          );
+          setSelectedRecipe((prev) =>
+            prev && prev.id === recipeId ? { ...prev, saved_id: newSavedId } : prev
+          );
+        }
+      }
+    } catch (err) {
+      console.error("Save toggle failed", err);
     }
-    */
   }
 
-
   async function postComment(recipeId, text) {
-    setRecipes(prev =>
-      prev.map(r =>
+    setRecipes((prev) =>
+      prev.map((r) =>
         r.id === recipeId
-          ? {
-              ...r,
-              comments: [...r.comments, { author: "You", text }]
-            }
+          ? { ...r, comments: [...r.comments, { author: "You", text }] }
           : r
       )
     );
 
-    setSelectedRecipe(prev =>
+    setSelectedRecipe((prev) =>
       prev && prev.id === recipeId
-        ? {
-            ...prev,
-            comments: [...prev.comments, { author: "You", text }]
-          }
+        ? { ...prev, comments: [...prev.comments, { author: "You", text }] }
         : prev
     );
 
-    /* ✅ BACKEND – SAMO ODKOMENTIRAŠ
-    await socialApi.post(`/comments/${recipeId}`, { text });
-    */
+    try {
+      await socialApi.post(`/comments/${recipeId}`, { text });
+    } catch (err) {
+      console.error("Post comment failed", err);
+    }
   }
 
   function openCartModal(recipe) {
@@ -162,53 +220,83 @@ export default function Explore() {
     setActiveCartRecipe(null);
   }
 
-  // =========================
-  // ✅ FRONTEND FILTERING (MOCK)
-  // =========================
+  async function openRecipe(recipe) {
+    // If we already have details, use them; otherwise hydrate from recipe API.
+    if (recipe.ingredients?.length && recipe.instructions && recipe.img) {
+      setSelectedRecipe(recipe);
+      return;
+    }
+
+    try {
+      const res = await recipeApi.get(`/recipes/${recipe.id}`);
+      console.log("Explore detail raw", res.data);
+      const base = normalizeRecipe(res.data);
+      const [withAuthor] = await hydrateAuthors([base]);
+      const enriched = user
+        ? await hydrateLikeCounts(await hydrateLikes([withAuthor]))
+        : [withAuthor];
+      const [withCounts] = enriched;
+      console.log("Explore detail hydrated", withCounts);
+      setSelectedRecipe(withCounts);
+    } catch (err) {
+      console.error("Failed to load recipe details", err);
+      setSelectedRecipe(recipe);
+    }
+  }
+    const timeToMinutes = (t) => {
+    if (t == null) return 999;
+    if (typeof t === "number") return t;
+    if (typeof t === "string") {
+      const [h = 0, m = 0, s = 0] = t.split(":").map(Number);
+      return h * 60 + m + Math.floor(s / 60);
+    }
+    return 999;
+  };
+
   const visibleRecipes = useMemo(() => {
     let filtered = recipes;
 
     if (search.trim()) {
       const q = search.toLowerCase();
       filtered = filtered.filter(
-        r =>
+        (r) =>
           r.recipe_name.toLowerCase().includes(q) ||
-          r.author_name.toLowerCase().includes(q)
+          (r.authorName || "").toLowerCase().includes(q)
       );
     }
 
     filtered = filtered.filter(
-      r => (r.total_time || 999) <= maxTime
+      (r) => timeToMinutes(r.total_time ?? r.total_time_minutes) <= maxTime
     );
 
     if (selectedCategories.length > 0) {
-      filtered = filtered.filter(r =>
-        selectedCategories.includes(r.category)
+      const catSet = new Set(selectedCategories.map((c) => c.toLowerCase()));
+      filtered = filtered.filter((r) =>
+        catSet.has((r.category || "").toLowerCase())
       );
     }
 
     return filtered;
   }, [recipes, search, selectedCategories, maxTime]);
-
+  
   return (
     <div className="flex gap-6 px-8 py-6">
-
       {/* LEFT SIDE */}
       <div className="flex-1 flex flex-col gap-6">
         <SearchBar search={search} setSearch={setSearch} />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {visibleRecipes.map(recipe => (
+          {visibleRecipes.map((recipe) => (
             <RecipeCard
               key={recipe.id}
               recipe={recipe}
-              onOpen={() => setSelectedRecipe(recipe)}
+              onOpen={() => openRecipe(recipe)}
               onToggleSave={() => toggleSave(recipe.id)}
               onToggleLike={() => toggleLike(recipe.id)}
-              onOpenComments={() => setSelectedRecipe(recipe)}
+              onOpenComments={() => openRecipe(recipe)}
               onOpenCart={() => openCartModal(recipe)}
-              isSaved={recipe.is_saved}
-              isLiked={recipe.is_liked}
+              isSaved={recipe.isSaved}
+              isLiked={recipe.isLiked}
             />
           ))}
 
@@ -228,14 +316,14 @@ export default function Explore() {
         selectedCategories={selectedCategories}
         toggleCategory={toggleCategory}
       />
-
+      
       {/* DETAIL MODAL */}
       {selectedRecipe && (
         <RecipeDetailModal
           recipe={selectedRecipe}
           onClose={() => setSelectedRecipe(null)}
-          isLiked={selectedRecipe.is_liked}
-          isSaved={selectedRecipe.is_saved}
+          isLiked={selectedRecipe.isLiked}
+          isSaved={selectedRecipe.isSaved}
           onToggleLike={() => toggleLike(selectedRecipe.id)}
           onToggleSave={() => toggleSave(selectedRecipe.id)}
           onOpenCart={() => openCartModal(selectedRecipe)}
@@ -245,12 +333,8 @@ export default function Explore() {
 
       {/* CART MODAL */}
       {showCartModal && (
-        <CartModal
-          recipe={activeCartRecipe}
-          onClose={closeCartModal}
-        />
+        <CartModal recipe={activeCartRecipe} onClose={closeCartModal} />
       )}
-
     </div>
   );
 }

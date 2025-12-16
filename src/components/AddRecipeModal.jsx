@@ -11,7 +11,7 @@ export default function AddRecipeModal({ onClose, onSubmit }) {
   const [instructions, setInstructions] = useState("");
   const [keywords, setKeywords] = useState("");
   const [imageFile, setImageFile] = useState(null);
-  const [category, setCategory] = useState("breakfast");
+  const [category, setCategory] = useState("dinner");
   const [visibility, setVisibility] = useState("public");
 
   const [ingredients, setIngredients] = useState([
@@ -40,66 +40,32 @@ export default function AddRecipeModal({ onClose, onSubmit }) {
   function handleSubmit(e) {
     e.preventDefault();
 
-    const payload = {
-      recipe_name: recipeName,
-      description,
-      cooking_time: normalizeTime(cookingTime),
-      total_time: normalizeTime(totalTime),
-      servings: Number(servings),
-      ingredients: ingredients.map((ing) => ({
-        name: ing.name,
-        amount: Number(ing.amount),
-        unit: ing.unit,
-      })),
-      instructions,
-      keywords,
-      imageFile,
-      visibility,
-      category,
-    };
-
-    onSubmit(payload); 
-  }
-
-/*   async function handleSubmit(e) {
-    e.preventDefault();
-
-    try {
-      const formData = new FormData();
-
-      formData.append("recipe_name", recipeName);
-      formData.append("description", description);
-      formData.append("cooking_time", normalizeTime(cookingTime));
-      formData.append("total_time", normalizeTime(totalTime));
-      formData.append("servings", Number(servings));
-      formData.append("instructions", instructions);
-      formData.append("keywords", keywords);
-      formData.append("visibility", visibility);
-      formData.append("category", category);
-
-      ingredients.forEach((ing, i) => {
-        formData.append(`ingredients[${i}][name]`, ing.name);
-        formData.append(
-          `ingredients[${i}][amount]`,
-          Number(ing.amount)
-        );
-        formData.append(`ingredients[${i}][unit]`, ing.unit);
-      });
-
-      if (imageFile) {
-        formData.append("image", imageFile); 
-      }
-      await recipeApi.post("/recipes", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-      });
-
-      onClose(); 
-    } catch (err) {
-      console.error("Error publishing recipe:", err);
+    const formData = new FormData();
+    formData.append("recipe_name", recipeName);
+    formData.append("description", description);
+    formData.append("cooking_time", normalizeTime(cookingTime));
+    formData.append("total_time", normalizeTime(totalTime));
+    formData.append("servings", Number(servings));
+    formData.append(
+      "ingredients",
+      JSON.stringify(
+        ingredients.map((ing) => ({
+          name: ing.name,
+          amount: Number(ing.amount),
+          unit: ing.unit,
+        }))
+      )
+    );
+    formData.append("instructions", instructions);
+    if (keywords) formData.append("keywords", keywords);
+    formData.append("visibility", visibility);
+    formData.append("category", category);
+    if (imageFile) {
+      formData.append("image", imageFile);
     }
-  } */
+
+    onSubmit(formData);
+  }
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
@@ -244,6 +210,34 @@ export default function AddRecipeModal({ onClose, onSubmit }) {
             onChange={(e) => setKeywords(e.target.value)}
           />
 
+          <div className="flex gap-4">
+            <div className="flex-1">
+              <label className="font-semibold text-gray-700">Category</label>
+              <select
+                className="mt-1 border rounded-lg px-3 py-2 w-full"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+              >
+                <option value="breakfast">Breakfast</option>
+                <option value="lunch">Lunch</option>
+                <option value="dinner">Dinner</option>
+                <option value="snack">Snack</option>
+                <option value="dessert">Dessert</option>
+              </select>
+            </div>
+            <div className="flex-1">
+              <label className="font-semibold text-gray-700">Visibility</label>
+              <select
+                className="mt-1 border rounded-lg px-3 py-2 w-full"
+                value={visibility}
+                onChange={(e) => setVisibility(e.target.value)}
+              >
+                <option value="public">Public</option>
+                <option value="private">Private</option>
+              </select>
+            </div>
+          </div>
+
           <label className="font-semibold text-gray-700">Recipe Image</label>
           <input
             type="file"
@@ -270,4 +264,3 @@ export default function AddRecipeModal({ onClose, onSubmit }) {
     </div>
   );
 }
-

@@ -8,7 +8,7 @@ export default function Register() {
 
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
-  const [publicname, setPublicname] = useState("");
+  const [publicName, setPublicName] = useState("");
   const [birthdate, setBirthdate] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -26,17 +26,26 @@ export default function Register() {
     }
 
     try {
-      await userApi.post("/auth/register", {
+      const payload = {
         email,
         password,
         username,
-        publicname,
-        birthdate,
-      });
+      };
+      if (publicName) payload.public_name = publicName;
+      if (birthdate) payload.birthdate = birthdate;
+
+      await userApi.post("/auth/register", payload);
 
       setSuccess(true);
+      setPassword("");
+      setConfirmPassword("");
     } catch (err) {
-      setError("Registration failed. Please try again.");
+      console.error("Registration failed", err);
+      const msg =
+        err?.response?.data?.detail ||
+        err?.response?.data?.message ||
+        "Registration failed. Please try again.";
+      setError(msg);
     }
   }
   return (
@@ -64,8 +73,8 @@ export default function Register() {
               type = "text"
               placeholder="Full Name"
               className="border rounded p-3"
-              value={publicname}
-              onChange={(e) => setPublicname(e.target.value)}
+              value={publicName}
+              onChange={(e) => setPublicName(e.target.value)}
              />
             <input
               type="text"

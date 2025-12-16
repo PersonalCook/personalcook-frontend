@@ -64,7 +64,7 @@ export const mockRecipes = [
 
 export const mockSavedRecipes = [
   {
-    recipe_id: 101,
+    recipe_id: 3,
     user_id: 2,  
     recipe_name: "Crispy Chicken Tacos",
     description: "Crunchy tacos with savory chicken filling.",
@@ -90,8 +90,8 @@ export const mockSavedRecipes = [
   },
 
   {
-    recipe_id: 102,
-    user_id: 5,
+    recipe_id: 4,
+    user_id: 2,
     recipe_name: "Blueberry Smoothie Bowl",
     description: "A refreshing and healthy smoothie bowl.",
     
@@ -116,8 +116,8 @@ export const mockSavedRecipes = [
   },
 
   {
-    recipe_id: 103,
-    user_id: 7,
+    recipe_id: 5,
+    user_id: 3,
     recipe_name: "Classic Chocolate Cake",
     description: "Rich and moist chocolate cake.",
     
@@ -141,8 +141,8 @@ export const mockSavedRecipes = [
     category: "dessert"
   },
   {
-    recipe_id: 104,
-    user_id: 4,
+    recipe_id: 6,
+    user_id: 3,
     created_at: "2025-02-15T12:10:00",
     recipe_name: "Creamy Garlic Pasta",
     description: "Rich, creamy pasta with garlic and parmesan.",
@@ -165,8 +165,8 @@ export const mockSavedRecipes = [
     category: "dinner"
   },
   {
-    recipe_id: 105,
-    user_id: 8,
+    recipe_id: 7,
+    user_id: 3,
     created_at: "2025-02-08T18:40:00",
     recipe_name: "Mediterranean Chickpea Salad",
     description: "Fresh chickpea salad with lemon dressing.",
@@ -197,12 +197,12 @@ export const mockCarts = [
     name: "Weekend Dinner",
     recipes: [
       {
-        recipe_id: 101,
+        recipe_id: 3,
         recipe_name: "Crispy Chicken Tacos",
         img: "https://static01.nyt.com/images/2025/05/14/multimedia/kf-easy-chicken-tacos-gwfh/kf-easy-chicken-tacos-gwfh-mediumSquareAt3X.jpg"
       },
       {
-        recipe_id: 104,
+        recipe_id: 6,
         recipe_name: "Creamy Garlic Pasta",
         img: "https://www.allrecipes.com/thmb/QiGptPjQB5mqSXGVxE4sLPMJs_4=/1500x0/filters:no_upscale():max_bytes(150000):strip_icc()/AR-269500-creamy-garlic-pasta-Beauties-2x1-bcd9cb83138849e4b17104a1cd51d063.jpg"
       }
@@ -220,7 +220,7 @@ export const mockCarts = [
     name: "Healthy Meal Prep",
     recipes: [
       {
-        recipe_id: 105,
+        recipe_id: 7,
         recipe_name: "Mediterranean Chickpea Salad",
         img: "https://joyfoodsunshine.com/wp-content/uploads/2022/07/mediterranean-chickpea-salad-recipe-1x1-1.jpg"
       }
@@ -236,19 +236,19 @@ export const mockCarts = [
 export const mockUsers = [
   {
     user_id: 5,
-    username: "pia",
+    username: "pia", //pia1c
     public_name: "Pia Sotlar",
     avatar: null
   },
   {
     user_id: 2,
-    username: "andrejk",
+    username: "andrejk", //andrejkregar
     public_name: "Andrej Kregar",
     avatar: null
   },
   {
     user_id: 3,
-    username: "tomasd",
+    username: "tomasd", 
     public_name: "Tomaž Dolenc",
     avatar: null
   },
@@ -262,7 +262,7 @@ export const mockUsers = [
 
 export const mockFeedRecipes = [
   {
-    recipe_id: 201,
+    recipe_id: 8,
     recipe_name: "Caprese Sandwich",
     user_id: 2,
     author_name: "Andrej Kregar",
@@ -270,7 +270,7 @@ export const mockFeedRecipes = [
     img: "https://cdn.loveandlemons.com/wp-content/uploads/2020/06/caprese-sandwich.jpg",
   },
   {
-    recipe_id: 202,
+    recipe_id: 9,
     recipe_name: "Fresh Spring Rolls",
     user_id: 3,
     author_name: "Tomaž Dolenc",
@@ -278,11 +278,36 @@ export const mockFeedRecipes = [
     img: "https://assets.epicurious.com/photos/65aee4e026ff5c4836d56426/1:1/w_3839,h_3839,c_limit/Fresh-Spring-Rolls_RECIPE.jpg",
   },
   {
-    recipe_id: 203,
+    recipe_id: 10,
     recipe_name: "Lemon Cheesecake",
     user_id: 4,
     author_name: "Nejc Česen",
     created_at: "2025-02-13T12:48:00",
     img: "https://tornadoughalli.com/wp-content/uploads/2020/02/LEMON-CHEESECAKE-3-2.jpg",
-  }
+  },
+
+  {
+  recipe_id: 11,
+  user_id: 5,
+  created_at: "2025-02-09T12:55:00",
+  recipe_name: "Lemon Garlic Salmon",
+  description: "Pan-seared salmon with lemon and garlic.",
+  
+  cooking_time: "00:12:00",
+  total_time: "00:20:00",
+  servings: 2,
+  
+  ingredients: [
+    { name: "Salmon fillets", amount: 2, unit: "pcs" },
+    { name: "Garlic cloves", amount: 2, unit: "pcs" },
+    { name: "Lemon", amount: 1, unit: "pcs" },
+    { name: "Olive oil", amount: 1, unit: "tbsp" },
+    { name: "Salt", amount: 1, unit: "tsp" }
+  ],
+  
+  instructions: "Season salmon with salt. Sear in olive oil skin-side down until crisp. Add garlic and lemon juice, cook briefly, and serve.",
+  keywords: "salmon, fish, healthy, quick",
+  visibility: "public",
+  category: "dinner"
+}
 ];

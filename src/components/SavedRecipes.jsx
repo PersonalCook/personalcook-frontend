@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import SearchBar from "./SearchBar";
-import FilterSidebar from "./FilterSideBar";
+import FilterSidebar from "./FilterSidebar";
 import RecipeCard from "./RecipeCard";
 import CartModal from "./CartModal";
 import RecipeDetailModal from "./RecipeDetailModal";
