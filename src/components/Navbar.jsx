@@ -35,14 +35,23 @@ export default function Navbar() {
         <SidebarLink to="/search" label="Search Profiles" />
       </nav>
 
-      {user && (
-        <button
-          onClick={handleLogout}
-          className="mt-auto text-red-600 hover:text-red-800 text-left"
-        >
-          Logout
-        </button>
-      )}
+      <div className="mt-auto">
+        {user ? (
+          <button
+            onClick={handleLogout}
+            className="text-red-600 hover:text-red-800 text-left"
+          >
+            Logout
+          </button>
+        ) : (
+          <NavLink
+            to="/login"
+            className="text-blue-600 hover:text-blue-800"
+          >
+            Login
+          </NavLink>
+        )}
+      </div>
     </div>
   );
 }
@@ -62,4 +71,3 @@ function SidebarLink({ to, label }) {
     </NavLink>
   );
 }
-

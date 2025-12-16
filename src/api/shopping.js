@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const baseURL = import.meta.env.VITE_API_SHOPPING_URL || "http://shopping:8004";
+const baseURL = import.meta.env.VITE_API_SHOPPING_URL || "http://localhost:8004";
 
 const shoppingApi = axios.create({ baseURL });
 

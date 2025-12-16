@@ -1,6 +1,5 @@
 import { createContext, useState, useEffect } from "react";
-import userApi from "../api/user";  
-import { mockUser } from "../mock";
+import userApi from "../api/user";
 
 export const AuthContext = createContext();
 
@@ -8,65 +7,52 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // useEffect(() => {
-  //   const token = localStorage.getItem("token");
-  //   if (!token) {
-  //     setLoading(false);
-  //     return;
-  //   }
-  
-  //   async function checkUser() {
-  //     try {
-  //       const res = await userApi.get("/profile/");
-  //       setUser(res.data);
-  //     } catch (err) {
-  //       console.log("Error fetching user:", err);
-  //       localStorage.removeItem("token");
-  //       setUser(null);
-  //     }
-  //     setLoading(false);
-  //   }
-  
-  //   checkUser();
-  // }, []);
-
-    useEffect(() => {
-    const useMock = import.meta.env.VITE_USE_MOCK_API === "true";
-    if (useMock) {
-      setUser(mockUser);
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) {
       setLoading(false);
       return;
     }
-    setLoading(false);
+
+    async function checkUser() {
+      try {
+        const storedId = localStorage.getItem("user_id");
+        if (!storedId) throw new Error("Missing user_id");
+        const res = await userApi.get(`/users/${storedId}`);
+        setUser(res.data);
+      } catch (err) {
+        console.error("Error fetching user", err);
+        localStorage.removeItem("token");
+        localStorage.removeItem("user_id");
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    }
+    checkUser();
   }, []);
 
   async function login(email, password) {
-    /*
-    const res = await userApi.post("/auth/login", {
-      email,
-      password,
-    });
-
-    localStorage.setItem("token", res.data.token);
-    localStorage.setItem("user_id", res.data.user_id);
-
-    const profile = await userApi.get("/profile/");
-    setUser(profile.data);
-    */
-
-    setUser(mockUser);
+    try {
+      const res = await userApi.post("/auth/login", { email, password });
+      const token = res.data?.access_token || res.data?.token;
+      const userId = res.data?.user_id;
+      if (!token || !userId) throw new Error("Missing token or user_id");
+      localStorage.setItem("token", token);
+      localStorage.setItem("user_id", userId);
+      const profile = await userApi.get(`/users/${userId}`);
+      setUser(profile.data);
+    } catch (err) {
+      console.error("Login failed", err);
+      throw err;
+    }
   }
 
   function logout() {
-    /*
     localStorage.removeItem("token");
     localStorage.removeItem("user_id");
-    */
-
-    setUser(null);  
+    setUser(null);
   }
-
-
 
   return (
     <AuthContext.Provider value={{ user, setUser, loading, login, logout }}>

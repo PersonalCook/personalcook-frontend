@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const baseURL = import.meta.env.VITE_API_SOCIAL_URL || "http://social:8003";
+const baseURL = import.meta.env.VITE_API_SOCIAL_URL || "http://localhost:8003";
 
 const socialApi = axios.create({ baseURL });
 

@@ -18,7 +18,7 @@ export default function RecipeDetailModal({
   onOpenCart,
 }) {
   if (!recipe) return null;
-
+  console.log("RecipeDetailModal recipe:", recipe);
   return (
     <div
       className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center px-4"
@@ -84,9 +84,9 @@ export default function RecipeDetailModal({
           {/* === TOP — AUTHOR INFO === */}
           <div className="p-4 border-b border-gray-200 flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center text-gray-700 font-semibold">
-              {recipe.author_name?.charAt(0).toUpperCase()}
+              {recipe.authorName?.charAt(0).toUpperCase()}
             </div>
-            <p className="font-semibold">{recipe.author_name}</p>
+            <p className="font-semibold">{recipe.authorName}</p>
           </div>
 
 

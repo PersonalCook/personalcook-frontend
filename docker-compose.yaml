@@ -3,11 +3,11 @@ services:
     build:
       context: .
       args:
-        VITE_API_USER_URL: "http://user_service:8000"
-        VITE_API_RECIPE_URL: "http://recipe_service:8000"
-        VITE_API_SEARCH_URL: "http://search_service:8000"
-        VITE_API_SOCIAL_URL: "http://social_service:8000"
-        VITE_API_SHOPPING_URL: "http://shopping_service:8000"
+        VITE_API_USER_URL: http://localhost:8000
+        VITE_API_RECIPE_URL: http://localhost:8001
+        VITE_API_SEARCH_URL: http://localhost:8002
+        VITE_API_SOCIAL_URL: http://localhost:8003
+        VITE_API_SHOPPING_URL: http://localhost:8004
         VITE_USE_MOCK_API: "false"
     ports: ["5173:80"]
     networks:

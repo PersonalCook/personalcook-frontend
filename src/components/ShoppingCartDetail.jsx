@@ -58,7 +58,7 @@ export default function ShoppingCartDetail({ cart, onClose }) {
             <h3 className="text-lg font-semibold mb-3">Recipes</h3>
 
             <div className="flex flex-col divide-y">
-              {cart.recipes.map((r) => (
+              {(cart.recipes || []).map((r) => (
                 <div
                   key={r.recipe_id}
                   onClick={() => setSelectedRecipe(r)}   
@@ -88,7 +88,7 @@ export default function ShoppingCartDetail({ cart, onClose }) {
             <h3 className="text-lg font-semibold mb-3">Shopping List</h3>
 
             <ul className="space-y-2 text-gray-700">
-              {cart.shopping_list.map((item, idx) => (
+              {(cart.shopping_list || []).map((item, idx) => (
                 <li
                   key={idx}
                   className="flex justify-between border-b pb-1 text-sm"
@@ -97,7 +97,7 @@ export default function ShoppingCartDetail({ cart, onClose }) {
                     {item.name}
                   </span>
                   <span className="text-gray-500">
-                    {item.amount} {item.unit}
+                    {(item.amount ?? item.quantity ?? "")} {item.unit}
                   </span>
                 </li>
               ))}
