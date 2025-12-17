@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, useContext } from "react";
+import { Link } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import searchApi from "../api/search";
 import socialApi from "../api/social";
@@ -265,6 +266,7 @@ export default function Feed() {
     setShowCartModal(false);
     setActiveCartRecipe(null);
   }
+  
 
   async function openRecipe(recipe) {
     if (recipe.ingredients?.length && recipe.instructions && recipe.img) {
@@ -304,14 +306,20 @@ return (
             onClick={() => openRecipe(recipe)}
           >
             {/* HEADER */}
-            <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-200 bg-white">
-              <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center text-gray-700 font-semibold">
-                {recipe.authorName?.charAt(0).toUpperCase()}
-              </div>
-              <span className="font-medium text-gray-800">
-                {recipe.authorName}
-              </span>
-            </div>
+            <Link
+                to={`/profile/${recipe.user_id ?? recipe.recipe?.user_id}`}
+                onClick={(e) => e.stopPropagation()}   // da ne odpre recepta (card onClick)
+                className="flex items-center gap-3 px-4 py-3 border-b border-gray-200 bg-white cursor-pointer hover:bg-gray-50"
+              >
+                <div className="w-10 h-10 rounded-full bg-gray-300 flex items-center justify-center text-gray-700 font-semibold">
+                  {(recipe.authorName?.charAt(0) || "?").toUpperCase()}
+                </div>
+                <span className="font-medium text-gray-800">
+                  {recipe.authorName || "Unknown"}
+                </span>
+            </Link>
+
+
 
             {/* IMAGE */}
             <div className="w-full h-80 overflow-hidden">
@@ -384,6 +392,7 @@ return (
       {selectedRecipe && (
         <RecipeDetailModal
           recipe={selectedRecipe}
+          user = {user}
           onClose={() => setSelectedRecipe(null)}
           isLiked={selectedRecipe.isLiked}
           isSaved={selectedRecipe.isSaved}

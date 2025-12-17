@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import userApi from "../api/user";
 import recipeApi from "../api/recipe";
+import socialApi from "../api/social";
 import RecipeGridMy from "../components/RecipeGridMy";
 import RecipeDetailModal from "../components/RecipeDetailModal";
 import CartModal from "../components/CartModal";
@@ -13,6 +14,7 @@ import {
   hydrateLikeCounts,
 } from "../utils/normalizeRecipe";
 
+
 export default function UserProfile() {
   const { id } = useParams();
   const [user, setUser] = useState(null);
@@ -23,14 +25,21 @@ export default function UserProfile() {
   const [showCartModal, setShowCartModal] = useState(false);
   const [activeCartRecipe, setActiveCartRecipe] = useState(null);
   const [error, setError] = useState(null);
+  const [followersCount, setFollowersCount] = useState(0);
+  const [followingCount, setFollowingCount] = useState(0);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [followBusy, setFollowBusy] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
     async function load() {
       try {
-        const [u, r] = await Promise.all([
+        const [u, r, followersRes, followingRes, myFollowingRes] = await Promise.all([
           userApi.get(`/users/${id}`),
           recipeApi.get(`/recipes/user/${id}`),
+          socialApi.get(`/follows/followers/${id}`),
+          socialApi.get(`/follows/following/${id}`),
+          socialApi.get(`/follows/following/me`),
         ]);
         if (!isMounted) return;
 
@@ -52,6 +61,14 @@ export default function UserProfile() {
             .filter((rec) => rec.isSaved)
             .map((rec) => rec.recipe_id ?? rec.id)
         );
+        setFollowersCount((followersRes.data || []).length);
+        setFollowingCount((followingRes.data || []).length);
+
+        const myFollowing = myFollowingRes.data || [];
+        const amIFollowing = myFollowing.some(
+          (f) => String(f.following_id) === String(id)
+        );
+        setIsFollowing(amIFollowing);
         setError(null);
       } catch (err) {
         console.error("Failed to load profile", err);
@@ -114,18 +131,73 @@ export default function UserProfile() {
     setActiveCartRecipe(null);
   }
 
+  async function toggleFollow() {
+    if (!id || followBusy) return;
+    setFollowBusy(true);
+  
+    try {
+      if (isFollowing) {
+        await socialApi.delete(`/follows/${id}`);
+        setIsFollowing(false);
+        setFollowersCount((c) => Math.max(0, c - 1));
+      } else {
+        await socialApi.post(`/follows/${id}`);
+        setIsFollowing(true);
+        setFollowersCount((c) => c + 1);
+      }
+    } catch (err) {
+      console.error("Failed to toggle follow", err);
+      // optional: tu lahko pokažeš toast ali setError
+    } finally {
+      setFollowBusy(false);
+    }
+  }
+  
+
   return (
     <div className="p-6">
-      <div className="flex items-center gap-6 mb-6">
-        <div className="w-20 h-20 rounded-full bg-gray-300 flex items-center justify-center text-3xl">
-          {user.public_name?.[0] || "?"}
+      <div className="flex items-start justify-between gap-6 mb-6">
+        <div className="flex items-center gap-6">
+          <div className="w-20 h-20 rounded-full bg-gray-300 flex items-center justify-center text-3xl">
+            {user.public_name?.[0] || "?"}
+          </div>
+
+          <div>
+            <h1 className="text-2xl font-bold">{user.public_name}</h1>
+            <p className="text-gray-600">@{user.username}</p>
+          </div>
         </div>
 
-        <div>
-          <h1 className="text-2xl font-bold">{user.public_name}</h1>
-          <p className="text-gray-600">@{user.username}</p>
+        <div className="flex flex-col items-end gap-3">
+          <div className="flex items-center gap-6 text-sm">
+            <div className="text-right">
+              <div className="font-semibold">{recipes.length}</div>
+              <div className="text-gray-600">Recipes</div>
+            </div>
+            <div className="text-right">
+              <div className="font-semibold">{followingCount}</div>
+              <div className="text-gray-600">Following</div>
+            </div>
+            <div className="text-right">
+              <div className="font-semibold">{followersCount}</div>
+              <div className="text-gray-600">Followers</div>
+            </div>
+          </div>
+
+          <button
+            onClick={toggleFollow}
+            disabled={followBusy}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold border ${
+              isFollowing
+                ? "bg-white text-gray-900 border-gray-300 hover:bg-gray-50"
+                : "bg-gray-900 text-white border-gray-900 hover:bg-gray-800"
+            } ${followBusy ? "opacity-60 cursor-not-allowed" : ""}`}
+          >
+            {followBusy ? "..." : isFollowing ? "Unfollow" : "Follow"}
+          </button>
         </div>
       </div>
+
 
       <RecipeGridMy
         recipes={recipes}

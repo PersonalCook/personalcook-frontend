@@ -12,3 +12,12 @@ createRoot(document.getElementById('root')).render(
     </AuthProvider>
   </StrictMode>
 )
+
+//namestiš node.js in npm
+// npm install (da namestis odvisnosti)
+//npm install axios
+// npm install -D tailwindcss postcss autoprefixer
+// npx tailwindcss init -p
+// npm install @heroicons/react
+// npm install react-router-dom
+// npm run dev
