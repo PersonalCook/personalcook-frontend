@@ -11,9 +11,9 @@ services:
         VITE_USE_MOCK_API: "false"
     ports: ["5173:80"]
     networks:
-      - backend_net
+      - personalcook_net
 
 networks:
-  backend_net:
+  personalcook_net:
     external: true
-    name: personalcook-app_default
+    name: personalcook-net

@@ -26,8 +26,11 @@ export default function Explore() {
   const [maxTime, setMaxTime] = useState(60);
   const [selectedCategories, setSelectedCategories] = useState([]);
   const categories = ["Breakfast", "Lunch", "Dinner", "Snack", "Dessert"];
+  const MIN_QUERY_LEN = 2;
 
   const [recipes, setRecipes] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   const [showCartModal, setShowCartModal] = useState(false);
   const [activeCartRecipe, setActiveCartRecipe] = useState(null);
@@ -40,19 +43,25 @@ export default function Explore() {
   };
 
   useEffect(() => {
-    async function fetchExplore() {
+    let isMounted = true;
+    const controller = new AbortController();
+    const trimmed = search.trim();
+    const query = trimmed.length >= MIN_QUERY_LEN ? trimmed : "";
+    const timeoutId = setTimeout(async () => {
       try {
+        setLoading(true);
         const res = await searchApi.get("/search/explore", {
           params: {
-            q: search || undefined,
+            q: query || undefined,
             category:
               selectedCategories.length === 1
                 ? selectedCategories[0].toLowerCase()
                 : undefined,
             max_time: maxTime || undefined,
           },
+          signal: controller.signal,
         });
-        const data = normalizeRecipes(res.data?.results || []);
+        const data = normalizeRecipes(res.data?.results || res.data || []);
         const withAuthors = await hydrateAuthors(data);
         const baseSocial = await hydrateLikeCounts(withAuthors);
         const withSocial = user
@@ -62,15 +71,26 @@ export default function Explore() {
           const detail = await recipeApi.get(`/recipes/${id}`);
           return detail.data;
         });
-        console.log("Explore fetched recipes", withImages);
+        if (!isMounted) return;
         setRecipes(withImages);
+        setError(null);
       } catch (err) {
+        if (err?.code === "ERR_CANCELED" || err?.name === "CanceledError") return;
         console.error("Failed to load explore recipes", err);
-        setRecipes([]);
+        if (isMounted) {
+          setRecipes([]);
+          setError("Failed to load explore recipes");
+        }
+      } finally {
+        if (isMounted) setLoading(false);
       }
-    }
+    }, 250);
 
-    fetchExplore();
+    return () => {
+      isMounted = false;
+      controller.abort();
+      clearTimeout(timeoutId);
+    };
   }, [search, selectedCategories, maxTime, user]);
 
   async function toggleLike(recipeId) {
@@ -256,20 +276,7 @@ export default function Explore() {
   const visibleRecipes = useMemo(() => {
     let filtered = recipes;
 
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      filtered = filtered.filter(
-        (r) =>
-          r.recipe_name.toLowerCase().includes(q) ||
-          (r.authorName || "").toLowerCase().includes(q)
-      );
-    }
-
-    filtered = filtered.filter(
-      (r) => timeToMinutes(r.total_time ?? r.total_time_minutes) <= maxTime
-    );
-
-    if (selectedCategories.length > 0) {
+    if (selectedCategories.length > 1) {
       const catSet = new Set(selectedCategories.map((c) => c.toLowerCase()));
       filtered = filtered.filter((r) =>
         catSet.has((r.category || "").toLowerCase())
@@ -277,8 +284,9 @@ export default function Explore() {
     }
 
     return filtered;
-  }, [recipes, search, selectedCategories, maxTime]);
-  
+  }, [recipes, selectedCategories]);
+
+
   return (
     <div className="flex gap-6 px-8 py-6">
       {/* LEFT SIDE */}
@@ -286,10 +294,23 @@ export default function Explore() {
         <SearchBar search={search} setSearch={setSearch} />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {loading && (
+            <div className="col-span-full text-gray-500 text-center py-6">
+              Loading recipes...
+            </div>
+          )}
+
+          {error && (
+            <div className="col-span-full text-red-600 text-center py-6">
+              {error}
+            </div>
+          )}
+
           {visibleRecipes.map((recipe) => (
             <RecipeCard
               key={recipe.id}
               recipe={recipe}
+              user = {user}
               onOpen={() => openRecipe(recipe)}
               onToggleSave={() => toggleSave(recipe.id)}
               onToggleLike={() => toggleLike(recipe.id)}
@@ -300,7 +321,7 @@ export default function Explore() {
             />
           ))}
 
-          {visibleRecipes.length === 0 && (
+          {!loading && !error && visibleRecipes.length === 0 && (
             <div className="col-span-full text-gray-500 text-center py-10">
               No recipes found.
             </div>
@@ -321,13 +342,13 @@ export default function Explore() {
       {selectedRecipe && (
         <RecipeDetailModal
           recipe={selectedRecipe}
+          user={user}
           onClose={() => setSelectedRecipe(null)}
           isLiked={selectedRecipe.isLiked}
           isSaved={selectedRecipe.isSaved}
           onToggleLike={() => toggleLike(selectedRecipe.id)}
           onToggleSave={() => toggleSave(selectedRecipe.id)}
           onOpenCart={() => openCartModal(selectedRecipe)}
-          onPostComment={(text) => postComment(selectedRecipe.id, text)}
         />
       )}
 

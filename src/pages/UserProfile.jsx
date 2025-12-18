@@ -208,6 +208,7 @@ export default function UserProfile() {
       {selectedRecipe && (
         <RecipeDetailModal
           recipe={selectedRecipe}
+          user = {user}
           onClose={() => setSelectedRecipe(null)}
           isLiked={likedRecipes.includes(getId(selectedRecipe))}
           isSaved={savedRecipes.includes(getId(selectedRecipe))}

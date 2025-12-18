@@ -8,6 +8,7 @@ import { HeartIcon as HeartSolid } from "@heroicons/react/24/solid";
 import { BookmarkIcon as BookmarkSolid } from "@heroicons/react/24/solid";
 import { Link } from "react-router-dom";
 import socialApi from "../api/social";
+import userApi from "../api/user";
 
 export default function RecipeDetailModal({
   recipe,
@@ -29,6 +30,7 @@ export default function RecipeDetailModal({
   const [comments, setComments] = useState([]);
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [commentsError, setCommentsError] = useState(null);
+  const [deletingCommentId, setDeletingCommentId] = useState(null);
 
   // NEW COMMENT state
   const [commentContent, setCommentContent] = useState("");
@@ -53,9 +55,47 @@ export default function RecipeDetailModal({
         // GET comments
         const res = await socialApi.get(`/comments/recipe/${recipeId}`);
         const list = res.data?.results ?? res.data ?? [];
+        const normalizedList = Array.isArray(list) ? list : [list];
+
+        const ids = Array.from(
+          new Set(
+            (normalizedList || [])
+              .map((c) => c?.user_id)
+              .filter(Boolean)
+              .map((id) => id.toString())
+          )
+        );
+
+        const authorMap = new Map();
+        await Promise.all(
+          ids.map(async (idStr) => {
+            const id = Number.isNaN(Number(idStr)) ? idStr : Number(idStr);
+            try {
+              const userRes = await userApi.get(`/users/${id}`);
+              const u = userRes.data || {};
+              authorMap.set(idStr, {
+                name: u.public_name || "",
+                username: u.username || "",
+              });
+            } catch (err) {
+              console.error("Failed to load comment author", id, err);
+            }
+          })
+        );
 
         if (!isMounted) return;
-        setComments(Array.isArray(list) ? list : [list]);
+        setComments(
+          normalizedList.map((c) => {
+            const idRaw = c?.user_id;
+            const idKey = idRaw != null ? idRaw.toString() : null;
+            const info = idKey ? authorMap.get(idKey) || {} : {};
+            return {
+              ...c,
+              authorName: c.public_name || info.name || "",
+              authorUsername: c.authorUsername || info.username || "",
+            };
+          })
+        );
       } catch (err) {
         const status = err?.response?.status;
         const data = err?.response?.data;
@@ -94,9 +134,17 @@ export default function RecipeDetailModal({
       // POST comment (backend expects "content")
       const res = await socialApi.post(`/comments/${recipeId}`, { content });
       const created = res.data;
+      const currentName = user?.public_name || "";
 
       // Add new comment at top
-      setComments((prev) => [created, ...prev]);
+      setComments((prev) => [
+        {
+          ...created,
+          authorName: created?.public_name || currentName,
+          authorUsername: created?.authorUsername || user?.username || "",
+        },
+        ...prev,
+      ]);
       setCommentContent("");
     } catch (err) {
       const status = err?.response?.status;
@@ -110,6 +158,28 @@ export default function RecipeDetailModal({
       );
     } finally {
       setPosting(false);
+    }
+  }
+
+  async function handleDeleteComment(commentId) {
+    if (!commentId || deletingCommentId) return;
+    setDeletingCommentId(commentId);
+    try {
+      await socialApi.delete(`/comments/${commentId}`);
+      setComments((prev) =>
+        prev.filter((c) => (c.id ?? c.comment_id) !== commentId)
+      );
+    } catch (err) {
+      const status = err?.response?.status;
+      const data = err?.response?.data;
+      console.error("Failed to delete comment", { status, data, err });
+      setCommentsError(
+        `Failed to delete comment${status ? ` (HTTP ${status})` : ""}${
+          data ? `: ${JSON.stringify(data)}` : ""
+        }`
+      );
+    } finally {
+      setDeletingCommentId(null);
     }
   }
 
@@ -213,16 +283,31 @@ export default function RecipeDetailModal({
               <p className="text-gray-500">No comments yet.</p>
             )}
             {/*iz user_id je treba pridobit username, da se potem prikaže */}
-            {comments.map((c, i) => (
-              <div key={c.id ?? i} className="border-b pb-3">
-                <p className="font-semibold">
-                  {String(c.user_id) === String(user?.user_id) ? "You" : `User #${c.user_id}`}
-                </p>
+            {comments.map((c, i) => {
+              const commentId = c.id ?? c.comment_id;
+              return (
+              <div key={commentId ?? i} className="border-b pb-3">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="font-semibold">
+                    {c.authorName ||
+                      (c.user_id != null ? `User #${c.user_id}` : "Unknown")}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteComment(commentId)}
+                    disabled={!commentId || deletingCommentId === commentId}
+                    className="text-gray-400 hover:text-gray-600 disabled:opacity-50"
+                    aria-label="Delete comment"
+                  >
+                    X
+                  </button>
+                </div>
                 <p className="text-gray-700">
                   {c.content ?? c.text ?? c.comment ?? ""}
                 </p>
               </div>
-            ))}
+            );
+            })}
           </div>
 
           {/* BOTTOM — ACTIONS + ADD COMMENT */}

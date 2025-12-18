@@ -1,20 +1,27 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useContext, useEffect } from "react";
 import SearchBar from "./SearchBar";
 import FilterSidebar from "./FilterSidebar";
 import RecipeCard from "./RecipeCard";
 import CartModal from "./CartModal";
 import RecipeDetailModal from "./RecipeDetailModal";
+import socialApi from "../api/social";
+import { AuthContext } from "../context/AuthContext";
+import {
+  hydrateLikeCounts,
+  hydrateLikes,
+  hydrateSaved,
+} from "../utils/normalizeRecipe";
+
 
 export default function SavedRecipes({ recipes }) {
+  const { user } = useContext(AuthContext);
+  const [items, setItems] = useState(recipes || []);
 
   // SEARCH + FILTERING
   const [search, setSearch] = useState("");
   const [maxTime, setMaxTime] = useState(60);
   const [selectedCategories, setSelectedCategories] = useState([]);
   const categories = ["Breakfast", "Lunch", "Dinner", "Snack", "Dessert"];
-
-  // LIKE STATE (save je vedno true!)
-  const [likedRecipes, setLikedRecipes] = useState([]);
 
   // CART MODAL
   const [showCartModal, setShowCartModal] = useState(false);
@@ -24,6 +31,35 @@ export default function SavedRecipes({ recipes }) {
   const [selectedRecipe, setSelectedRecipe] = useState(null);
 
   // -------------------------
+  const getId = (r) => {
+    if (r == null) return null;
+    if (typeof r === "object") return r.id ?? r.recipe_id;
+    return r;
+  };
+
+  useEffect(() => {
+    let active = true;
+    const base = recipes || [];
+    setItems(base);
+
+    if (!user || base.length === 0) return;
+
+    (async () => {
+      try {
+        const withLikes = await hydrateLikes(base);
+        const withSaved = await hydrateSaved(withLikes);
+        const withCounts = await hydrateLikeCounts(withSaved);
+        if (active) setItems(withCounts);
+      } catch (err) {
+        console.error("SavedRecipes: failed to sync likes/saves", err);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
+  }, [recipes, user]);
+
   function toggleCategory(cat) {
     setSelectedCategories(prev =>
       prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]
@@ -32,33 +68,177 @@ export default function SavedRecipes({ recipes }) {
 
   function timeToMinutes(t) {
     if (!t) return 999;
-    const [h, m, s] = t.split(":").map(Number);
-    return h * 60 + m + Math.floor((s || 0) / 60);
+    if (typeof t === "number") return t;
+    if (typeof t === "string") {
+      const [h = 0, m = 0, s = 0] = t.split(":").map(Number);
+      return h * 60 + m + Math.floor(s / 60);
+    }
+    return 999;
   }
 
   const filteredRecipes = useMemo(() => {
-    let items = recipes || [];
+    let list = items || [];
 
     if (search.trim()) {
       const q = search.toLowerCase();
-      items = items.filter(r => r.recipe_name.toLowerCase().includes(q));
+      list = list.filter(r =>
+        (r.recipe_name || r.name || "").toLowerCase().includes(q)
+      );
     }
 
     if (selectedCategories.length > 0) {
-      items = items.filter(r => selectedCategories.includes(r.category));
+      list = list.filter(r => selectedCategories.includes(r.category));
     }
 
-    items = items.filter(r => timeToMinutes(r.total_time) <= maxTime);
+    list = list.filter(r => timeToMinutes(r.total_time) <= maxTime);
 
-    return items;
-  }, [search, maxTime, selectedCategories, recipes]);
+    return list;
+  }, [search, maxTime, selectedCategories, items]);
 
-  function toggleLike(recipeId) {
-    setLikedRecipes(prev =>
-      prev.includes(recipeId)
-        ? prev.filter(id => id !== recipeId)
-        : [...prev, recipeId]
+  async function toggleLike(recipeId) {
+    if (!user) {
+      alert("Please log in to like recipes.");
+      return;
+    }
+    const targetId = getId(recipeId);
+    if (!targetId) return;
+    const current = items.find((r) => getId(r) === targetId);
+    if (!current) return;
+    const currentLikeId = current?.like_id;
+    setItems((prev) =>
+      prev.map((r) =>
+        getId(r) === targetId
+          ? {
+              ...r,
+              isLiked: !r.isLiked,
+              like_id: r.isLiked ? null : r.like_id,
+            }
+          : r
+      )
     );
+    setSelectedRecipe((prev) =>
+      prev && getId(prev) === targetId
+        ? {
+            ...prev,
+            isLiked: !prev.isLiked,
+            like_id: prev.isLiked ? null : prev.like_id,
+          }
+        : prev
+    );
+
+    try {
+      if (current?.isLiked && currentLikeId) {
+        await socialApi.delete(`/likes/${currentLikeId}`);
+      } else {
+        const res = await socialApi.post(`/likes/${targetId}`);
+        const newLikeId = res?.data?.like_id ?? res?.data?.id ?? null;
+        if (newLikeId) {
+          setItems((prev) =>
+            prev.map((r) =>
+              getId(r) === targetId ? { ...r, like_id: newLikeId } : r
+            )
+          );
+          setSelectedRecipe((prev) =>
+            prev && getId(prev) === targetId
+              ? { ...prev, like_id: newLikeId }
+              : prev
+          );
+        }
+      }
+
+      const target =
+        items.find((r) => getId(r) === targetId) ||
+        selectedRecipe ||
+        current ||
+        null;
+      if (target) {
+        const [withCount] = await hydrateLikeCounts([target]);
+        if (withCount) {
+          setItems((prev) =>
+            prev.map((r) =>
+              getId(r) === targetId ? { ...r, likes: withCount.likes } : r
+            )
+          );
+          setSelectedRecipe((prev) =>
+            prev && getId(prev) === targetId
+              ? { ...prev, likes: withCount.likes }
+              : prev
+          );
+        }
+      }
+    } catch (err) {
+      console.error("SavedRecipes: like toggle failed", err);
+    }
+  }
+
+  async function toggleSave(recipeId) {
+    if (!user) {
+      alert("Please log in to save recipes.");
+      return;
+    }
+    const targetId = getId(recipeId);
+    if (!targetId) return;
+    const current = items.find((r) => getId(r) === targetId);
+    if (!current) return;
+    let currentSavedId = current?.saved_id;
+    const currentIsSaved = current?.isSaved ?? current?.is_saved ?? true;
+    setItems((prev) => {
+      if (currentIsSaved) {
+        return prev.filter((r) => getId(r) !== targetId);
+      }
+      return prev.map((r) =>
+        getId(r) === targetId
+          ? {
+              ...r,
+              isSaved: !r.isSaved,
+              is_saved: !r.isSaved,
+              saved_id: r.isSaved ? null : r.saved_id,
+            }
+          : r
+      );
+    });
+
+    setSelectedRecipe((prev) =>
+      prev && getId(prev) === targetId
+        ? {
+            ...prev,
+            isSaved: !prev.isSaved,
+            is_saved: !prev.isSaved,
+            saved_id: prev.isSaved ? null : prev.saved_id,
+          }
+        : prev
+    );
+
+    try {
+      if (currentIsSaved && !currentSavedId) {
+        try {
+          const res = await socialApi.get(`/saved/recipe/${targetId}/me`);
+          currentSavedId = res?.data?.saved_id ?? res?.data?.id ?? null;
+        } catch (err) {
+          console.error("SavedRecipes: failed to fetch saved id", err);
+        }
+      }
+      if (currentIsSaved && currentSavedId) {
+        await socialApi.delete(`/saved/${currentSavedId}`);
+      } else if (!currentIsSaved) {
+        const res = await socialApi.post(`/saved/${targetId}`);
+        const newSavedId = res?.data?.saved_id ?? res?.data?.id ?? null;
+        if (newSavedId) {
+          setItems((prev) =>
+            prev.map((r) =>
+              getId(r) === targetId ? { ...r, saved_id: newSavedId } : r
+            )
+          );
+          setSelectedRecipe((prev) =>
+            prev && getId(prev) === targetId
+              ? { ...prev, saved_id: newSavedId }
+              : prev
+          );
+        }
+      }
+    } catch (err) {
+      console.error("SavedRecipes: save toggle failed", err);
+    }
   }
 
   function openCartModal(recipe) {
@@ -74,8 +254,8 @@ export default function SavedRecipes({ recipes }) {
   function openDetail(recipe) {
     setSelectedRecipe({
       ...recipe,
-      isLiked: likedRecipes.includes(recipe.recipe_id),
-      isSaved: true, // always saved
+      isLiked: Boolean(recipe.isLiked),
+      isSaved: recipe.isSaved ?? recipe.is_saved ?? true,
     });
   }
 
@@ -94,18 +274,18 @@ export default function SavedRecipes({ recipes }) {
 
           {filteredRecipes.map(r => (
             <RecipeCard
-              key={r.recipe_id}
+              key={getId(r)}
               recipe={r}
 
               onOpen={() => openDetail(r)}
 
-              onToggleSave={() => {}} // saved = always true
-              onToggleLike={() => toggleLike(r.recipe_id)}
+              onToggleSave={() => toggleSave(getId(r))}
+              onToggleLike={() => toggleLike(getId(r))}
               onOpenCart={() => openCartModal(r)}
               onOpenComments={() => openDetail(r)}
 
-              isSaved={true}
-              isLiked={likedRecipes.includes(r.recipe_id)}
+              isSaved={r.isSaved ?? r.is_saved ?? true}
+              isLiked={Boolean(r.isLiked)}
             />
           ))}
 
@@ -132,13 +312,14 @@ export default function SavedRecipes({ recipes }) {
       {selectedRecipe && (
         <RecipeDetailModal
           recipe={selectedRecipe}
+          user={user}
           onClose={closeDetail}
 
-          isLiked={likedRecipes.includes(selectedRecipe.recipe_id)}
-          isSaved={true}
+          isLiked={Boolean(selectedRecipe.isLiked)}
+          isSaved={selectedRecipe.isSaved ?? selectedRecipe.is_saved ?? true}
 
-          onToggleLike={() => toggleLike(selectedRecipe.recipe_id)}
-          onToggleSave={() => {}}
+          onToggleLike={() => toggleLike(getId(selectedRecipe))}
+          onToggleSave={() => toggleSave(getId(selectedRecipe))}
           onOpenCart={() => openCartModal(selectedRecipe)}
         />
       )}

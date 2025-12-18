@@ -26,6 +26,8 @@ export default function Home() {
 
   const [selectedRecipe, setSelectedRecipe] = useState(null);
   const [selectedCart, setSelectedCart] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
 
   const [likedRecipes, setLikedRecipes] = useState([]);
   const [savedRecipes, setSavedRecipes] = useState([]);
@@ -130,9 +132,42 @@ export default function Home() {
         await hydrateAuthors(normalizeRecipes(r.data || []))
       );
       setRecipes(normalized);
+      setShowModal(false);
     } catch (err) {
       console.error("Error saving recipe", err);
     }
+  }
+
+  function requestDeleteRecipe(recipe) {
+    if (!recipe) return;
+    setDeleteTarget(recipe);
+  }
+
+  async function confirmDeleteRecipe() {
+    if (!deleteTarget || deleteBusy) return;
+    const recipeId = deleteTarget?.recipe_id ?? deleteTarget?.id;
+    if (!recipeId) return;
+    setDeleteBusy(true);
+    try {
+      await recipeApi.delete(`/recipes/${recipeId}`);
+      setRecipes((prev) =>
+        prev.filter((r) => (r.recipe_id ?? r.id) !== recipeId)
+      );
+      setSelectedRecipe((prev) =>
+        prev && (prev.recipe_id ?? prev.id) === recipeId ? null : prev
+      );
+      setDeleteTarget(null);
+    } catch (err) {
+      console.error("Error deleting recipe", err);
+      setError("Failed to delete recipe");
+    } finally {
+      setDeleteBusy(false);
+    }
+  }
+
+  function cancelDeleteRecipe() {
+    if (deleteBusy) return;
+    setDeleteTarget(null);
   }
 
   function toggleLike(recipeId) {
@@ -190,6 +225,16 @@ export default function Home() {
     if (selectedCart?.cart_id === cart.cart_id) {
       setSelectedCart(null);
     }
+  }
+
+  function handleUpdateCart(nextCart) {
+    if (!nextCart?.cart_id) return;
+    setShoppingCarts((prev) =>
+      prev.map((c) => (c.cart_id === nextCart.cart_id ? { ...c, ...nextCart } : c))
+    );
+    setSelectedCart((prev) =>
+      prev && prev.cart_id === nextCart.cart_id ? { ...prev, ...nextCart } : prev
+    );
   }
 
   if (loading) return <div>Loading...</div>;
@@ -253,6 +298,7 @@ export default function Home() {
             recipes={myRecipes}
             onAdd={() => setShowModal(true)}
             onOpenRecipe={setSelectedRecipe}
+            onDeleteRecipe={requestDeleteRecipe}
           />
         )}
 
@@ -285,6 +331,7 @@ export default function Home() {
       {selectedRecipe && (
         <RecipeDetailModal
           recipe={selectedRecipe}
+          user = {user}
           onClose={() => setSelectedRecipe(null)}
           isLiked={likedRecipes.includes(selectedRecipe.recipe_id)}
           isSaved={savedRecipes.includes(selectedRecipe.recipe_id)}
@@ -298,6 +345,7 @@ export default function Home() {
         <ShoppingCartDetail
           cart={selectedCart}
           onClose={() => setSelectedCart(null)}
+          onUpdateCart={handleUpdateCart}
         />
       )}
 
@@ -308,6 +356,37 @@ export default function Home() {
           onCreateCart={handleCreateCart}
           onAddToExistingCart={handleAddToExistingCart}
         />
+      )}
+
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center px-4">
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-sm p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Delete recipe?
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              This action cannot be undone.
+            </p>
+            <div className="flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={cancelDeleteRecipe}
+                disabled={deleteBusy}
+                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 text-sm hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteRecipe}
+                disabled={deleteBusy}
+                className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm hover:bg-red-700 disabled:opacity-50"
+              >
+                {deleteBusy ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

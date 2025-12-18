@@ -3,6 +3,7 @@ export default function RecipeGridMy({
   recipes, 
   onAdd, 
   onOpenRecipe, 
+  onDeleteRecipe,
   showAdd = true 
 }) {
 
@@ -27,6 +28,19 @@ export default function RecipeGridMy({
           onClick={() => onOpenRecipe(r)}
           className="relative group cursor-pointer"
         >
+          {onDeleteRecipe && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDeleteRecipe(r);
+              }}
+              className="absolute top-2 right-2 z-10 h-7 w-7 rounded-full bg-white/90 text-gray-700 text-sm font-semibold shadow hover:bg-white"
+              aria-label="Delete recipe"
+            >
+              X
+            </button>
+          )}
           <div className="aspect-square w-full rounded-md overflow-hidden shadow-sm">
             <img
               src={r.img || r.image_url} 
