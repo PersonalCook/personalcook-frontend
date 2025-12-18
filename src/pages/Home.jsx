@@ -8,9 +8,10 @@ import {
   normalizeRecipes,
   hydrateAuthors,
   hydrateLikes,
+  hydrateLikeCounts,
+  hydrateSaved,
 } from "../utils/normalizeRecipe";
 
-// Components
 import RecipeGridMy from "../components/RecipeGridMy";
 import SavedRecipes from "../components/SavedRecipes";
 import ShoppingCartGrid from "../components/ShoppingCartGrid";
@@ -29,9 +30,6 @@ export default function Home() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
 
-  const [likedRecipes, setLikedRecipes] = useState([]);
-  const [savedRecipes, setSavedRecipes] = useState([]);
-
   const [showCartModal, setShowCartModal] = useState(false);
   const [activeCartRecipe, setActiveCartRecipe] = useState(null);
 
@@ -39,10 +37,12 @@ export default function Home() {
   const [savedRecipesShow, setSavedRecipesShow] = useState([]);
   const [shoppingCarts, setShoppingCarts] = useState([]);
   const [error, setError] = useState(null);
+  const [followersCount, setFollowersCount] = useState(0);
+  const [followingCount, setFollowingCount] = useState(0);
 
   const myRecipes = recipes.filter((r) => r.user_id === user?.user_id);
 
-  const hydrateSaved = async (savedList) => {
+  const hydrateSavedRecipesList = async (savedList) => {
     if (!savedList?.length) return [];
     const fetched = await Promise.all(
       savedList.map(async (item) => {
@@ -102,17 +102,22 @@ export default function Home() {
     if (loading || !user) return;
     async function load() {
       try {
-        const [r, c, s] = await Promise.all([
+        const [r, c, s, followersRes, followingRes] = await Promise.all([
           recipeApi.get("/recipes/"),
           shoppingApi.get("/cart/my"),
           socialApi.get("/saved/my"),
+          socialApi.get(`/follows/followers/${user.user_id}`),
+          socialApi.get(`/follows/following/${user.user_id}`),
         ]);
-        const normalized = await hydrateLikes(
-          await hydrateAuthors(normalizeRecipes(r.data))
-        );
+        let normalized = await hydrateAuthors(normalizeRecipes(r.data || []));
+        normalized = await hydrateLikes(normalized);
+        normalized = await hydrateSaved(normalized);
+        normalized = await hydrateLikeCounts(normalized);
         setRecipes(normalized);
         setShoppingCarts(await hydrateCarts(c.data));
-        setSavedRecipesShow(await hydrateSaved(s.data));
+        setSavedRecipesShow(await hydrateSavedRecipesList(s.data));
+        setFollowersCount((followersRes.data || []).length);
+        setFollowingCount((followingRes.data || []).length);
         setError(null);
       } catch (err) {
         console.error(err);
@@ -170,21 +175,137 @@ export default function Home() {
     setDeleteTarget(null);
   }
 
-  function toggleLike(recipeId) {
-    setLikedRecipes(prev =>
-      prev.includes(recipeId)
-        ? prev.filter(id => id !== recipeId)
-        : [...prev, recipeId]
-    );
-  }
-
   function toggleSave(recipeId) {
-    setSavedRecipes(prev =>
-      prev.includes(recipeId)
-        ? prev.filter(id => id !== recipeId)
-        : [...prev, recipeId]
+    const current = recipes.find((r) => (r.id || r.recipe_id) === recipeId);
+    const currentSavedId = current?.saved_id;
+  
+    setRecipes((prev) =>
+      prev.map((r) =>
+        (r.id || r.recipe_id) === recipeId
+          ? {
+              ...r,
+              isSaved: !r.isSaved,
+              is_saved: !r.isSaved,
+              saved_id: r.isSaved ? null : r.saved_id,
+            }
+          : r
+      )
     );
+  
+    setSelectedRecipe((prev) =>
+      prev && (prev.id || prev.recipe_id) === recipeId
+        ? {
+            ...prev,
+            isSaved: !prev.isSaved,
+            is_saved: !prev.isSaved,
+            saved_id: prev.isSaved ? null : prev.saved_id,
+          }
+        : prev
+    );
+  
+    (async () => {
+      try {
+        if (current?.isSaved && currentSavedId) {
+          await socialApi.delete(`/saved/${currentSavedId}`);
+        } else {
+          const res = await socialApi.post(`/saved/${recipeId}`);
+          const newSavedId = res?.data?.saved_id ?? res?.data?.id ?? null;
+          if (newSavedId) {
+            setRecipes((prev) =>
+              prev.map((r) =>
+                (r.id || r.recipe_id) === recipeId ? { ...r, saved_id: newSavedId } : r
+              )
+            );
+            setSelectedRecipe((prev) =>
+              prev && (prev.id || prev.recipe_id) === recipeId
+                ? { ...prev, saved_id: newSavedId }
+                : prev
+            );
+          }
+        }
+      } catch (err) {
+        console.error("Save toggle failed", err);
+      }
+    })();
   }
+  
+  function toggleLike(recipeId) {
+    const current = recipes.find((r) => (r.id || r.recipe_id) === recipeId);
+    const currentLikeId = current?.like_id;
+  
+    setRecipes((prev) =>
+      prev.map((r) =>
+        (r.id || r.recipe_id) === recipeId
+          ? {
+              ...r,
+              isLiked: !r.isLiked,
+              like_id: r.isLiked ? null : r.like_id,
+            }
+          : r
+      )
+    );
+  
+    setSelectedRecipe((prev) =>
+      prev && (prev.id || prev.recipe_id) === recipeId
+        ? {
+            ...prev,
+            isLiked: !prev.isLiked,
+            like_id: prev.isLiked ? null : prev.like_id,
+          }
+        : prev
+    );
+  
+    (async () => {
+      try {
+        if (current?.isLiked && currentLikeId) {
+          await socialApi.delete(`/likes/${currentLikeId}`);
+        } else {
+          const res = await socialApi.post(`/likes/${recipeId}`);
+          const newLikeId = res?.data?.like_id ?? res?.data?.id ?? null;
+          if (newLikeId) {
+            setRecipes((prev) =>
+              prev.map((r) =>
+                (r.id || r.recipe_id) === recipeId ? { ...r, like_id: newLikeId } : r
+              )
+            );
+            setSelectedRecipe((prev) =>
+              prev && (prev.id || prev.recipe_id) === recipeId
+                ? { ...prev, like_id: newLikeId }
+                : prev
+            );
+          }
+        }
+  
+        // refresh like count
+        const target =
+          recipes.find((r) => (r.id || r.recipe_id) === recipeId) ||
+          selectedRecipe ||
+          current ||
+          null;
+  
+        if (target) {
+          const [withCount] = await hydrateLikeCounts([target]);
+          if (withCount) {
+            setRecipes((prev) =>
+              prev.map((r) =>
+                (r.id || r.recipe_id) === recipeId
+                  ? { ...r, likes: withCount.likes }
+                  : r
+              )
+            );
+            setSelectedRecipe((prev) =>
+              prev && (prev.id || prev.recipe_id) === recipeId
+                ? { ...prev, likes: withCount.likes }
+                : prev
+            );
+          }
+        }
+      } catch (err) {
+        console.error("Like toggle failed", err);
+      }
+    })();
+  }
+  
 
   function openCartModal(recipe) {
     setActiveCartRecipe(recipe);
@@ -279,14 +400,33 @@ export default function Home() {
 
       {/* -------- USER INFO -------- */}
       <div className="p-6">
-        <div className="flex items-center gap-6 mb-6">
-          <div className="w-20 h-20 rounded-full bg-gray-300 flex items-center justify-center text-3xl font-semibold">
-            {user.public_name?.[0]}
+        <div className="flex items-start justify-between gap-6 mb-6">
+          <div className="flex items-center gap-6">
+            <div className="w-20 h-20 rounded-full bg-gray-300 flex items-center justify-center text-3xl">
+              {user.public_name?.[0] || "?"}
+            </div>
+
+            <div>
+              <h1 className="text-2xl font-bold">{user.public_name}</h1>
+              <p className="text-gray-600">@{user.username}</p>
+            </div>
           </div>
 
-          <div>
-            <h1 className="text-2xl font-bold">{user.public_name}</h1>
-            <p className="text-gray-600">@{user.username}</p>
+          <div className="flex flex-col items-end gap-3">
+            <div className="flex items-center gap-6 text-sm">
+              <div className="text-right">
+                <div className="font-semibold">{myRecipes.length}</div>
+                <div className="text-gray-600">Recipes</div>
+              </div>
+              <div className="text-right">
+                <div className="font-semibold">{followingCount}</div>
+                <div className="text-gray-600">Following</div>
+              </div>
+              <div className="text-right">
+                <div className="font-semibold">{followersCount}</div>
+                <div className="text-gray-600">Followers</div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -333,10 +473,10 @@ export default function Home() {
           recipe={selectedRecipe}
           user = {user}
           onClose={() => setSelectedRecipe(null)}
-          isLiked={likedRecipes.includes(selectedRecipe.recipe_id)}
-          isSaved={savedRecipes.includes(selectedRecipe.recipe_id)}
-          onToggleLike={() => toggleLike(selectedRecipe.recipe_id)}
-          onToggleSave={() => toggleSave(selectedRecipe.recipe_id)}
+          isLiked={!!selectedRecipe.isLiked}
+          isSaved={!!selectedRecipe.isSaved}
+          onToggleLike={() => toggleLike(selectedRecipe.id || selectedRecipe.recipe_id)}
+          onToggleSave={() => toggleSave(selectedRecipe.id || selectedRecipe.recipe_id)}
           onOpenCart={() => openCartModal(selectedRecipe)}
         />
       )}

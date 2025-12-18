@@ -1,128 +1,183 @@
-import { useState, useMemo, useContext, useEffect } from "react";
+import { useState, useMemo, useContext, useEffect, useRef } from "react";
 import SearchBar from "./SearchBar";
 import FilterSidebar from "./FilterSidebar";
 import RecipeCard from "./RecipeCard";
 import CartModal from "./CartModal";
 import RecipeDetailModal from "./RecipeDetailModal";
+
 import socialApi from "../api/social";
+import searchApi from "../api/search";
+import recipeApi from "../api/recipe";
+
 import { AuthContext } from "../context/AuthContext";
 import {
-  hydrateLikeCounts,
+  normalizeRecipes,
+  hydrateMissingImages,
+  hydrateAuthors,
   hydrateLikes,
-  hydrateSaved,
+  hydrateLikeCounts,
 } from "../utils/normalizeRecipe";
-
 
 export default function SavedRecipes({ recipes }) {
   const { user } = useContext(AuthContext);
-  const [items, setItems] = useState(recipes || []);
-
-  // SEARCH + FILTERING
+  const [items, setItems] = useState([]);
+  const [savedIds, setSavedIds] = useState(() => new Set());
+  const savedIdsRef = useRef(savedIds);
+  const [savedMetaById, setSavedMetaById] = useState(() => new Map()); 
+  const savedMetaRef = useRef(savedMetaById);
   const [search, setSearch] = useState("");
-  const [maxTime, setMaxTime] = useState(60);
+  const [maxTime, setMaxTime] = useState(600);
   const [selectedCategories, setSelectedCategories] = useState([]);
   const categories = ["Breakfast", "Lunch", "Dinner", "Snack", "Dessert"];
-
-  // CART MODAL
+  const MIN_QUERY_LEN = 2;
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [showCartModal, setShowCartModal] = useState(false);
   const [activeCartRecipe, setActiveCartRecipe] = useState(null);
-
-  // DETAIL MODAL
   const [selectedRecipe, setSelectedRecipe] = useState(null);
 
-  // -------------------------
   const getId = (r) => {
     if (r == null) return null;
     if (typeof r === "object") return r.id ?? r.recipe_id;
     return r;
   };
 
-  useEffect(() => {
-    let active = true;
-    const base = recipes || [];
-    setItems(base);
-
-    if (!user || base.length === 0) return;
-
-    (async () => {
-      try {
-        const withLikes = await hydrateLikes(base);
-        const withSaved = await hydrateSaved(withLikes);
-        const withCounts = await hydrateLikeCounts(withSaved);
-        if (active) setItems(withCounts);
-      } catch (err) {
-        console.error("SavedRecipes: failed to sync likes/saves", err);
-      }
-    })();
-
-    return () => {
-      active = false;
-    };
-  }, [recipes, user]);
-
-  function toggleCategory(cat) {
-    setSelectedCategories(prev =>
-      prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]
-    );
-  }
-
-  function timeToMinutes(t) {
-    if (!t) return 999;
+  const timeToMinutes = (t) => {
+    if (t == null) return 999;
     if (typeof t === "number") return t;
     if (typeof t === "string") {
       const [h = 0, m = 0, s = 0] = t.split(":").map(Number);
       return h * 60 + m + Math.floor(s / 60);
     }
     return 999;
-  }
+  };
 
-  const filteredRecipes = useMemo(() => {
-    let list = items || [];
+  const toggleCategory = (cat) => {
+    setSelectedCategories((prev) =>
+      prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]
+    );
+  };
 
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      list = list.filter(r =>
-        (r.recipe_name || r.name || "").toLowerCase().includes(q)
-      );
+  useEffect(() => {
+    const base = recipes || [];
+    const nextIds = new Set();
+    const nextMeta = new Map();
+
+    for (const r of base) {
+      const id = getId(r);
+      if (id == null) continue;
+
+      nextIds.add(String(id));
+      const sid = r?.saved_id ?? null;
+      if (sid) nextMeta.set(String(id), { saved_id: sid });
     }
 
-    if (selectedCategories.length > 0) {
-      list = list.filter(r => selectedCategories.includes(r.category));
-    }
+    setSavedIds(nextIds);
+    setSavedMetaById(nextMeta);
+    setItems(base.map((r) => ({ ...r, isSaved: true, is_saved: true })));
+  }, [recipes]);
 
-    list = list.filter(r => timeToMinutes(r.total_time) <= maxTime);
 
-    return list;
-  }, [search, maxTime, selectedCategories, items]);
+  useEffect(() => {
+    savedIdsRef.current = savedIds;
+  }, [savedIds]);
+
+  useEffect(() => {
+    savedMetaRef.current = savedMetaById;
+  }, [savedMetaById]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    let isMounted = true;
+    const controller = new AbortController();
+
+    const trimmed = search.trim();
+    const query = trimmed.length >= MIN_QUERY_LEN ? trimmed : "";
+
+    const timeoutId = setTimeout(async () => {
+      try {
+        setLoading(true);
+
+        const res = await searchApi.get("/search/explore", {
+          params: {
+            q: query || undefined,
+            category:
+              selectedCategories.length === 1
+                ? selectedCategories[0].toLowerCase()
+                : undefined,
+            max_time: maxTime || undefined,
+          },
+          signal: controller.signal,
+        });
+
+        const data = normalizeRecipes(res.data?.results || res.data || []);
+        const withAuthors = await hydrateAuthors(data);
+        const withCounts = await hydrateLikeCounts(withAuthors);
+        const withLikes = await hydrateLikes(withCounts);
+
+        const withImages = await hydrateMissingImages(withLikes, async (id) => {
+          const detail = await recipeApi.get(`/recipes/${id}`);
+          return detail.data;
+        });
+
+        const idSet = savedIdsRef.current;
+        let onlySaved = withImages.filter((r) => idSet.has(String(getId(r))));
+
+        if (selectedCategories.length > 1) {
+          const catSet = new Set(selectedCategories.map((c) => c.toLowerCase()));
+          onlySaved = onlySaved.filter((r) =>
+            catSet.has((r.category || "").toLowerCase())
+          );
+        }
+
+        onlySaved = onlySaved.filter((r) => timeToMinutes(r.total_time) <= maxTime);
+        onlySaved = onlySaved.map((r) => ({ ...r, isSaved: true, is_saved: true }));
+
+        if (!isMounted) return;
+        setItems(onlySaved);
+        setError(null);
+      } catch (err) {
+        if (err?.code === "ERR_CANCELED" || err?.name === "CanceledError") return;
+        console.error("SavedRecipes: search MS failed", err);
+        if (isMounted) setError("Failed to search saved recipes");
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }, 250);
+
+    return () => {
+      isMounted = false;
+      controller.abort();
+      clearTimeout(timeoutId);
+    };
+  }, [user, search, selectedCategories, maxTime]);
+
 
   async function toggleLike(recipeId) {
     if (!user) {
       alert("Please log in to like recipes.");
       return;
     }
-    const targetId = getId(recipeId);
+    const targetId = String(getId(recipeId));
     if (!targetId) return;
-    const current = items.find((r) => getId(r) === targetId);
+
+    const current = items.find((r) => String(getId(r)) === targetId);
     if (!current) return;
+
     const currentLikeId = current?.like_id;
+
     setItems((prev) =>
       prev.map((r) =>
-        getId(r) === targetId
-          ? {
-              ...r,
-              isLiked: !r.isLiked,
-              like_id: r.isLiked ? null : r.like_id,
-            }
+        String(getId(r)) === targetId
+          ? { ...r, isLiked: !r.isLiked, like_id: r.isLiked ? null : r.like_id }
           : r
       )
     );
+
     setSelectedRecipe((prev) =>
-      prev && getId(prev) === targetId
-        ? {
-            ...prev,
-            isLiked: !prev.isLiked,
-            like_id: prev.isLiked ? null : prev.like_id,
-          }
+      prev && String(getId(prev)) === targetId
+        ? { ...prev, isLiked: !prev.isLiked, like_id: prev.isLiked ? null : prev.like_id }
         : prev
     );
 
@@ -135,34 +190,27 @@ export default function SavedRecipes({ recipes }) {
         if (newLikeId) {
           setItems((prev) =>
             prev.map((r) =>
-              getId(r) === targetId ? { ...r, like_id: newLikeId } : r
+              String(getId(r)) === targetId ? { ...r, like_id: newLikeId } : r
             )
           );
           setSelectedRecipe((prev) =>
-            prev && getId(prev) === targetId
-              ? { ...prev, like_id: newLikeId }
-              : prev
+            prev && String(getId(prev)) === targetId ? { ...prev, like_id: newLikeId } : prev
           );
         }
       }
 
-      const target =
-        items.find((r) => getId(r) === targetId) ||
-        selectedRecipe ||
-        current ||
-        null;
+
+      const target = current || selectedRecipe || null;
       if (target) {
         const [withCount] = await hydrateLikeCounts([target]);
         if (withCount) {
           setItems((prev) =>
             prev.map((r) =>
-              getId(r) === targetId ? { ...r, likes: withCount.likes } : r
+              String(getId(r)) === targetId ? { ...r, likes: withCount.likes } : r
             )
           );
           setSelectedRecipe((prev) =>
-            prev && getId(prev) === targetId
-              ? { ...prev, likes: withCount.likes }
-              : prev
+            prev && String(getId(prev)) === targetId ? { ...prev, likes: withCount.likes } : prev
           );
         }
       }
@@ -171,69 +219,68 @@ export default function SavedRecipes({ recipes }) {
     }
   }
 
+
   async function toggleSave(recipeId) {
     if (!user) {
       alert("Please log in to save recipes.");
       return;
     }
-    const targetId = getId(recipeId);
+    const targetId = String(getId(recipeId));
     if (!targetId) return;
-    const current = items.find((r) => getId(r) === targetId);
-    if (!current) return;
-    let currentSavedId = current?.saved_id;
-    const currentIsSaved = current?.isSaved ?? current?.is_saved ?? true;
-    setItems((prev) => {
-      if (currentIsSaved) {
-        return prev.filter((r) => getId(r) !== targetId);
-      }
-      return prev.map((r) =>
-        getId(r) === targetId
-          ? {
-              ...r,
-              isSaved: !r.isSaved,
-              is_saved: !r.isSaved,
-              saved_id: r.isSaved ? null : r.saved_id,
-            }
-          : r
-      );
+
+    const currentlySaved = savedIdsRef.current.has(targetId);
+
+    setSavedIds((prev) => {
+      const next = new Set(prev);
+      if (currentlySaved) next.delete(targetId);
+      else next.add(targetId);
+      return next;
     });
 
+    setItems((prev) =>
+      prev.map((r) =>
+        String(getId(r)) === targetId
+          ? { ...r, isSaved: !currentlySaved, is_saved: !currentlySaved }
+          : r
+      )
+    );
+
     setSelectedRecipe((prev) =>
-      prev && getId(prev) === targetId
-        ? {
-            ...prev,
-            isSaved: !prev.isSaved,
-            is_saved: !prev.isSaved,
-            saved_id: prev.isSaved ? null : prev.saved_id,
-          }
+      prev && String(getId(prev)) === targetId
+        ? { ...prev, isSaved: !currentlySaved, is_saved: !currentlySaved }
         : prev
     );
 
     try {
-      if (currentIsSaved && !currentSavedId) {
-        try {
+      if (currentlySaved) {
+        let savedId = savedMetaRef.current.get(targetId)?.saved_id ?? null;
+
+        if (!savedId) {
           const res = await socialApi.get(`/saved/recipe/${targetId}/me`);
-          currentSavedId = res?.data?.saved_id ?? res?.data?.id ?? null;
-        } catch (err) {
-          console.error("SavedRecipes: failed to fetch saved id", err);
+          savedId = res?.data?.saved_id ?? res?.data?.id ?? null;
         }
-      }
-      if (currentIsSaved && currentSavedId) {
-        await socialApi.delete(`/saved/${currentSavedId}`);
-      } else if (!currentIsSaved) {
+
+        if (savedId) {
+          await socialApi.delete(`/saved/${savedId}`);
+        }
+
+        setSavedMetaById((prev) => {
+          const next = new Map(prev);
+          next.delete(targetId);
+          return next;
+        });
+
+      } else {
         const res = await socialApi.post(`/saved/${targetId}`);
         const newSavedId = res?.data?.saved_id ?? res?.data?.id ?? null;
+
         if (newSavedId) {
-          setItems((prev) =>
-            prev.map((r) =>
-              getId(r) === targetId ? { ...r, saved_id: newSavedId } : r
-            )
-          );
-          setSelectedRecipe((prev) =>
-            prev && getId(prev) === targetId
-              ? { ...prev, saved_id: newSavedId }
-              : prev
-          );
+          setSavedMetaById((prev) => {
+            const next = new Map(prev);
+            next.set(targetId, { saved_id: newSavedId });
+            return next;
+          });
+
         }
       }
     } catch (err) {
@@ -255,41 +302,60 @@ export default function SavedRecipes({ recipes }) {
     setSelectedRecipe({
       ...recipe,
       isLiked: Boolean(recipe.isLiked),
-      isSaved: recipe.isSaved ?? recipe.is_saved ?? true,
+      isSaved: savedIdsRef.current.has(String(getId(recipe))),
+      is_saved: savedIdsRef.current.has(String(getId(recipe))),
     });
   }
 
+
   function closeDetail() {
+    const id = selectedRecipe ? String(getId(selectedRecipe)) : null;
+    const stillSaved = id ? savedIdsRef.current.has(id) : true;
+
     setSelectedRecipe(null);
+
+    if (id && !stillSaved) {
+      setItems((prev) => prev.filter((r) => String(getId(r)) !== id));
+    }
   }
 
+  const visibleItems = useMemo(() => items || [], [items]);
 
   return (
     <div className="flex gap-6 px-8 py-6">
-
       <div className="flex-1 flex flex-col gap-6">
         <SearchBar search={search} setSearch={setSearch} />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {loading && (
+            <div className="col-span-full text-gray-500 text-center py-6">
+              Searching saved recipes...
+            </div>
+          )}
 
-          {filteredRecipes.map(r => (
-            <RecipeCard
-              key={getId(r)}
-              recipe={r}
+          {error && (
+            <div className="col-span-full text-red-600 text-center py-6">
+              {error}
+            </div>
+          )}
 
-              onOpen={() => openDetail(r)}
+          {!loading &&
+            !error &&
+            visibleItems.map((r) => (
+              <RecipeCard
+                key={getId(r)}
+                recipe={r}
+                onOpen={() => openDetail(r)}
+                onToggleSave={() => toggleSave(getId(r))}
+                onToggleLike={() => toggleLike(getId(r))}
+                onOpenCart={() => openCartModal(r)}
+                onOpenComments={() => openDetail(r)}
+                isSaved={savedIdsRef.current.has(String(getId(r)))}
+                isLiked={Boolean(r.isLiked)}
+              />
+            ))}
 
-              onToggleSave={() => toggleSave(getId(r))}
-              onToggleLike={() => toggleLike(getId(r))}
-              onOpenCart={() => openCartModal(r)}
-              onOpenComments={() => openDetail(r)}
-
-              isSaved={r.isSaved ?? r.is_saved ?? true}
-              isLiked={Boolean(r.isLiked)}
-            />
-          ))}
-
-          {filteredRecipes.length === 0 && (
+          {!loading && !error && visibleItems.length === 0 && (
             <p className="text-center text-gray-500 col-span-full py-10">
               No saved recipes found.
             </p>
@@ -314,16 +380,13 @@ export default function SavedRecipes({ recipes }) {
           recipe={selectedRecipe}
           user={user}
           onClose={closeDetail}
-
           isLiked={Boolean(selectedRecipe.isLiked)}
-          isSaved={selectedRecipe.isSaved ?? selectedRecipe.is_saved ?? true}
-
+          isSaved={savedIdsRef.current.has(String(getId(selectedRecipe)))}
           onToggleLike={() => toggleLike(getId(selectedRecipe))}
           onToggleSave={() => toggleSave(getId(selectedRecipe))}
           onOpenCart={() => openCartModal(selectedRecipe)}
         />
       )}
-
     </div>
   );
 }

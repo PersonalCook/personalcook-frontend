@@ -23,7 +23,7 @@ import { AuthContext } from "../context/AuthContext";
 export default function Explore() {
   const { user } = useContext(AuthContext);
   const [search, setSearch] = useState("");
-  const [maxTime, setMaxTime] = useState(60);
+  const [maxTime, setMaxTime] = useState(600);
   const [selectedCategories, setSelectedCategories] = useState([]);
   const categories = ["Breakfast", "Lunch", "Dinner", "Snack", "Dessert"];
   const MIN_QUERY_LEN = 2;
@@ -139,7 +139,6 @@ export default function Explore() {
           );
         }
       }
-      // Refresh like count from API
       const target =
         recipes.find((r) => r.id === recipeId) ||
         selectedRecipe ||
@@ -241,7 +240,6 @@ export default function Explore() {
   }
 
   async function openRecipe(recipe) {
-    // If we already have details, use them; otherwise hydrate from recipe API.
     if (recipe.ingredients?.length && recipe.instructions && recipe.img) {
       setSelectedRecipe(recipe);
       return;
