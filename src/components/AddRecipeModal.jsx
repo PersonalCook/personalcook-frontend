@@ -1,8 +1,7 @@
 import { useState } from "react";
-//import recipeApi from "../api/recipe";
+// import recipeApi from "../api/recipe";
 
 export default function AddRecipeModal({ onClose, onSubmit }) {
-
   const [recipeName, setRecipeName] = useState("");
   const [description, setDescription] = useState("");
   const [cookingTime, setCookingTime] = useState("");
@@ -17,6 +16,8 @@ export default function AddRecipeModal({ onClose, onSubmit }) {
   const [ingredients, setIngredients] = useState([
     { name: "", amount: "", unit: "" },
   ]);
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   function normalizeTime(t) {
     if (!t) return "00:00:00";
@@ -37,40 +38,45 @@ export default function AddRecipeModal({ onClose, onSubmit }) {
     setIngredients(ingredients.filter((_, i) => i !== index));
   }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
+    if (isSubmitting) return; // prepreči double-click
+    setIsSubmitting(true);
 
-    const formData = new FormData();
-    formData.append("recipe_name", recipeName);
-    formData.append("description", description);
-    formData.append("cooking_time", normalizeTime(cookingTime));
-    formData.append("total_time", normalizeTime(totalTime));
-    formData.append("servings", Number(servings));
-    formData.append(
-      "ingredients",
-      JSON.stringify(
-        ingredients.map((ing) => ({
-          name: ing.name,
-          amount: Number(ing.amount),
-          unit: ing.unit,
-        }))
-      )
-    );
-    formData.append("instructions", instructions);
-    if (keywords) formData.append("keywords", keywords);
-    formData.append("visibility", visibility);
-    formData.append("category", category);
-    if (imageFile) {
-      formData.append("image", imageFile);
+    try {
+      const formData = new FormData();
+      formData.append("recipe_name", recipeName);
+      formData.append("description", description);
+      formData.append("cooking_time", normalizeTime(cookingTime));
+      formData.append("total_time", normalizeTime(totalTime));
+      formData.append("servings", Number(servings));
+      formData.append(
+        "ingredients",
+        JSON.stringify(
+          ingredients.map((ing) => ({
+            name: ing.name,
+            amount: Number(ing.amount),
+            unit: ing.unit,
+          }))
+        )
+      );
+      formData.append("instructions", instructions);
+      if (keywords) formData.append("keywords", keywords);
+      formData.append("visibility", visibility);
+      formData.append("category", category);
+      if (imageFile) {
+        formData.append("image", imageFile);
+      }
+
+      await Promise.resolve(onSubmit(formData));
+    } finally {
+      setIsSubmitting(false);
     }
-
-    onSubmit(formData);
   }
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
       <div className="bg-white w-full max-w-xl rounded-xl p-6 shadow-xl relative overflow-y-auto max-h-[90vh]">
-
         <button
           className="absolute top-3 right-4 text-2xl text-gray-500 hover:text-black"
           onClick={onClose}
@@ -81,7 +87,6 @@ export default function AddRecipeModal({ onClose, onSubmit }) {
         <h2 className="text-2xl font-bold mb-4">Add New Recipe</h2>
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-
           <input
             type="text"
             placeholder="Recipe name"
@@ -132,7 +137,6 @@ export default function AddRecipeModal({ onClose, onSubmit }) {
 
             {ingredients.map((ing, index) => (
               <div key={index} className="flex gap-2 mt-2">
-
                 <input
                   type="text"
                   placeholder="Name"
@@ -158,7 +162,9 @@ export default function AddRecipeModal({ onClose, onSubmit }) {
                 <select
                   className="border rounded-lg px-3 py-2 w-24"
                   value={ing.unit}
-                  onChange={(e) => updateIngredient(index, "unit", e.target.value)}
+                  onChange={(e) =>
+                    updateIngredient(index, "unit", e.target.value)
+                  }
                   required
                 >
                   <option value="">Unit</option>
@@ -255,9 +261,10 @@ export default function AddRecipeModal({ onClose, onSubmit }) {
 
           <button
             type="submit"
-            className="mt-4 bg-black text-white py-2 rounded-lg hover:bg-gray-800"
+            disabled={isSubmitting}
+            className="mt-4 bg-black text-white py-2 rounded-lg hover:bg-gray-800 disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            Publish Recipe
+            {isSubmitting ? "Publishing..." : "Publish Recipe"}
           </button>
         </form>
       </div>
