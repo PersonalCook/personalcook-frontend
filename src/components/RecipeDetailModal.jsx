@@ -9,6 +9,7 @@ import { BookmarkIcon as BookmarkSolid } from "@heroicons/react/24/solid";
 import { Link } from "react-router-dom";
 import socialApi from "../api/social";
 import userApi from "../api/user";
+import recipeApi from "../api/recipe";
 
 export default function RecipeDetailModal({
   recipe,
@@ -37,10 +38,69 @@ export default function RecipeDetailModal({
   const [posting, setPosting] = useState(false);
   const [postError, setPostError] = useState(null);
 
+  // === NUTRITION STATE ===
+  const [nutrition, setNutrition] = useState(null);
+  const [nutritionView, setNutritionView] = useState("total"); // "total" | "per100g" | "perServing"
+  const [nutritionLoading, setNutritionLoading] = useState(false);
+  const [nutritionError, setNutritionError] = useState(null);
+
+  // normalized ingredients for backend
+  const nutritionIngredients = useMemo(() => {
+    if (!Array.isArray(recipe.ingredients)) return [];
+    return recipe.ingredients.map((ing) => ({
+      name: ing.name,
+      amount: Number(ing.amount ?? 0),
+      unit: ing.unit || "g",
+    }));
+  }, [recipe.ingredients]);
+
+  // pick active view (total, per100g, perServing)
+  const activeNutrition = useMemo(() => {
+    if (!nutrition) return null;
+
+    if (nutritionView === "per100g") return nutrition.per_100g;
+    if (nutritionView === "perServing") return nutrition.per_serving;
+    return nutrition.totals;
+  }, [nutrition, nutritionView]);
+
+  const activeLabel =
+    nutritionView === "per100g"
+      ? "per 100 g of the prepared dish"
+      : nutritionView === "perServing"
+      ? "per 1 serving"
+      : "for the whole dish";
+
+  async function handleFetchNutrition() {
+    if (!nutritionIngredients.length) return;
+
+    setNutritionLoading(true);
+    setNutritionError(null);
+
+    try {
+      const servings =
+        recipe.servings && recipe.servings > 0 ? recipe.servings : 1;
+
+      const res = await recipeApi.post(
+        `/nutrition?servings=${servings}`,
+        { ingredients: nutritionIngredients }
+      );
+
+      setNutrition(res.data);
+      setNutritionView("total");
+    } catch (err) {
+      console.error("Error fetching nutrition:", err);
+      setNutritionError("An error occurred while calculating nutrition.");
+    } finally {
+      setNutritionLoading(false);
+    }
+  }
+
   // FETCH comments on open / recipe change
   useEffect(() => {
     if (!recipeId) {
-      setCommentsError("Missing recipeId (recipe.id/recipe.recipe_id is undefined)");
+      setCommentsError(
+        "Missing recipeId (recipe.id/recipe.recipe_id is undefined)"
+      );
       return;
     }
 
@@ -245,6 +305,135 @@ export default function RecipeDetailModal({
                 </p>
               </>
             )}
+
+            {/* NUTRITION SECTION (moved below Instructions) */}
+            <div className="mt-6 pt-4 border-t border-gray-200">
+              <h3 className="text-xl font-semibold mb-3">
+                Nutrition information
+              </h3>
+
+              {nutritionError && (
+                <p className="text-sm text-red-600 mb-2">{nutritionError}</p>
+              )}
+
+              <div className="flex items-center gap-3 mb-3">
+                <button
+                  onClick={handleFetchNutrition}
+                  disabled={nutritionLoading || !nutritionIngredients.length}
+                  className="px-3 py-1.5 rounded-md bg-green-600 text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-green-700"
+                >
+                  {nutritionLoading
+                    ? "Calculating..."
+                    : "Show nutrition information"}
+                </button>
+              </div>
+
+              {nutrition && (
+                <div className="mt-2">
+                  <div className="flex gap-2 mb-3 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setNutritionView("total")}
+                      className={`px-2 py-1 rounded-full border ${
+                        nutritionView === "total"
+                          ? "bg-gray-900 text-white border-gray-900"
+                          : "bg-white text-gray-700 border-gray-300"
+                      }`}
+                    >
+                      For whole dish
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setNutritionView("per100g")}
+                      className={`px-2 py-1 rounded-full border ${
+                        nutritionView === "per100g"
+                          ? "bg-gray-900 text-white border-gray-900"
+                          : "bg-white text-gray-700 border-gray-300"
+                      }`}
+                    >
+                      Per 100 g
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setNutritionView("perServing")}
+                      className={`px-2 py-1 rounded-full border ${
+                        nutritionView === "perServing"
+                          ? "bg-gray-900 text-white border-gray-900"
+                          : "bg-white text-gray-700 border-gray-300"
+                      }`}
+                    >
+                      Per serving
+                    </button>
+                  </div>
+
+                  <p className="text-xs text-gray-500">
+                    Total weight of dish:{" "}
+                    {nutrition.total_weight_g?.toFixed(1)} g
+                  </p>
+                  <p className="text-xs italic text-gray-500 mb-2">
+                    Displayed values: {activeLabel}
+                  </p>
+
+                  {activeNutrition && (
+                    <table className="w-full text-xs text-gray-700">
+                      <tbody>
+                        <tr>
+                          <td className="py-0.5 pr-2">Total fat</td>
+                          <td className="py-0.5 text-right">
+                            {(activeNutrition.fat_total_g ?? 0).toFixed(2)} g
+                          </td>
+                        </tr>
+                        <tr>
+                          <td className="py-0.5 pr-2">Saturated fat</td>
+                          <td className="py-0.5 text-right">
+                            {(activeNutrition.fat_saturated_g ?? 0).toFixed(2)} g
+                          </td>
+                        </tr>
+                        <tr>
+                          <td className="py-0.5 pr-2">Carbohydrates</td>
+                          <td className="py-0.5 text-right">
+                            {(activeNutrition.carbohydrates_total_g ?? 0).toFixed(
+                              2
+                            )}{" "}
+                            g
+                          </td>
+                        </tr>
+                        <tr>
+                          <td className="py-0.5 pr-2">Fiber</td>
+                          <td className="py-0.5 text-right">
+                            {(activeNutrition.fiber_g ?? 0).toFixed(2)} g
+                          </td>
+                        </tr>
+                        <tr>
+                          <td className="py-0.5 pr-2">Sugar</td>
+                          <td className="py-0.5 text-right">
+                            {(activeNutrition.sugar_g ?? 0).toFixed(2)} g
+                          </td>
+                        </tr>
+                        <tr>
+                          <td className="py-0.5 pr-2">Sodium</td>
+                          <td className="py-0.5 text-right">
+                            {(activeNutrition.sodium_mg ?? 0).toFixed(2)} mg
+                          </td>
+                        </tr>
+                        <tr>
+                          <td className="py-0.5 pr-2">Potassium</td>
+                          <td className="py-0.5 text-right">
+                            {(activeNutrition.potassium_mg ?? 0).toFixed(2)} mg
+                          </td>
+                        </tr>
+                        <tr>
+                          <td className="py-0.5 pr-2">Cholesterol</td>
+                          <td className="py-0.5 text-right">
+                            {(activeNutrition.cholesterol_mg ?? 0).toFixed(2)} mg
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -282,31 +471,31 @@ export default function RecipeDetailModal({
             {!commentsLoading && !commentsError && comments.length === 0 && (
               <p className="text-gray-500">No comments yet.</p>
             )}
-            {/*iz user_id je treba pridobit username, da se potem prikaže */}
+
             {comments.map((c, i) => {
               const commentId = c.id ?? c.comment_id;
               return (
-              <div key={commentId ?? i} className="border-b pb-3">
-                <div className="flex items-start justify-between gap-2">
-                  <p className="font-semibold">
-                    {c.authorName ||
-                      (c.user_id != null ? `User #${c.user_id}` : "Unknown")}
+                <div key={commentId ?? i} className="border-b pb-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="font-semibold">
+                      {c.authorName ||
+                        (c.user_id != null ? `User #${c.user_id}` : "Unknown")}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteComment(commentId)}
+                      disabled={!commentId || deletingCommentId === commentId}
+                      className="text-gray-400 hover:text-gray-600 disabled:opacity-50"
+                      aria-label="Delete comment"
+                    >
+                      X
+                    </button>
+                  </div>
+                  <p className="text-gray-700">
+                    {c.content ?? c.text ?? c.comment ?? ""}
                   </p>
-                  <button
-                    type="button"
-                    onClick={() => handleDeleteComment(commentId)}
-                    disabled={!commentId || deletingCommentId === commentId}
-                    className="text-gray-400 hover:text-gray-600 disabled:opacity-50"
-                    aria-label="Delete comment"
-                  >
-                    X
-                  </button>
                 </div>
-                <p className="text-gray-700">
-                  {c.content ?? c.text ?? c.comment ?? ""}
-                </p>
-              </div>
-            );
+              );
             })}
           </div>
 
