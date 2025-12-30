@@ -47,7 +47,7 @@ export default function Home() {
     const fetched = await Promise.all(
       savedList.map(async (item) => {
         try {
-          const res = await recipeApi.get(`/recipes/${item.recipe_id}`);
+          const res = await recipeApi.get(`recipes/${item.recipe_id}`);
           return normalizeRecipe(res.data);
         } catch (err) {
           console.error("Failed to fetch saved recipe", item.recipe_id, err);
@@ -75,7 +75,7 @@ export default function Home() {
         const recipesDetailed = await Promise.all(
           recipeIds.map(async (id) => {
             try {
-              const res = await recipeApi.get(`/recipes/${id}`);
+              const res = await recipeApi.get(`recipes/${id}`);
               return normalizeRecipe(res.data);
             } catch (err) {
               console.error("Failed to fetch cart recipe", id, err);
@@ -103,7 +103,7 @@ export default function Home() {
     async function load() {
       try {
         const [r, c, s, followersRes, followingRes] = await Promise.all([
-          recipeApi.get("/recipes/"),
+          recipeApi.get("recipes/"),
           shoppingApi.get("/cart/my"),
           socialApi.get("/saved/my"),
           socialApi.get(`/follows/followers/${user.user_id}`),
@@ -129,10 +129,10 @@ export default function Home() {
 
   async function handleCreateRecipe(formData) {
     try {
-      await recipeApi.post("/recipes", formData, {
+      await recipeApi.post("recipes/", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      const r = await recipeApi.get("/recipes/");
+      const r = await recipeApi.get("recipes/");
       const normalized = await hydrateLikes(
         await hydrateAuthors(normalizeRecipes(r.data || []))
       );
@@ -154,7 +154,7 @@ export default function Home() {
     if (!recipeId) return;
     setDeleteBusy(true);
     try {
-      await recipeApi.delete(`/recipes/${recipeId}`);
+      await recipeApi.delete(`recipes/${recipeId}`);
       setRecipes((prev) =>
         prev.filter((r) => (r.recipe_id ?? r.id) !== recipeId)
       );
