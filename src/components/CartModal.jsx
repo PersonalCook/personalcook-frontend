@@ -57,7 +57,7 @@ export default function CartModal({
     try {
       setSubmitting(true);
 
-      const res = await shoppingApi.post("/cart", {
+      const res = await shoppingApi.post("cart/", {
         name,
         recipe_ids: [recipe.recipe_id],
       });
