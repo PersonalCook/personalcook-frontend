@@ -30,14 +30,13 @@ jobs:
         uses: actions/checkout@v4
       - name: Build image 
         run: |
-          docker build -f dockerfile -t personalcook-frontend:test \
-            --build-arg VITE_API_USER_URL=${{ secrets.VITE_API_USER_URL }} \
-            --build-arg VITE_API_RECIPE_URL=${{ secrets.VITE_API_RECIPE_URL }} \
-            --build-arg VITE_API_SEARCH_URL=${{ secrets.VITE_API_SEARCH_URL }} \
-            --build-arg VITE_API_SOCIAL_URL=${{ secrets.VITE_API_SOCIAL_URL }} \
-            --build-arg VITE_API_SHOPPING_URL=${{ secrets.VITE_API_SHOPPING_URL }} \
-            --build-arg VITE_USE_MOCK_API=${{ secrets.VITE_USE_MOCK_API }} \
-            .
+          docker run -d --name personalcook-frontend -p 5173:80 \
+            --add-host user-service:127.0.0.1 \
+            --add-host recipe-service:127.0.0.1 \
+            --add-host search-service:127.0.0.1 \
+            --add-host social-service:127.0.0.1 \
+            --add-host shopping-service:127.0.0.1 \
+            personalcook-frontend:test
       - name: Run container
         run: |
           docker run -d --name personalcook-frontend -p 5173:80 \
