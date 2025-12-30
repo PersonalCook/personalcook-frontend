@@ -17,7 +17,7 @@ export default function ShoppingCartGrid({ carts, onOpenCart, onCreateCart, onDe
     try {
       setSubmitting(true);
 
-      const res = await shoppingApi.post("/cart", {
+      const res = await shoppingApi.post("cart/", {
         name,
         recipe_ids: [],
       });
