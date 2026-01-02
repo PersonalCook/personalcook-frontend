@@ -23,7 +23,7 @@ export default function Search() {
     const timeoutId = setTimeout(async () => {
       setLoading(true);
       try {
-        const res = await searchApi.get("/search/users", {
+        const res = await searchApi.get("/users", {
           params: { q: trimmed, limit: 20 },
           signal: controller.signal,
         });

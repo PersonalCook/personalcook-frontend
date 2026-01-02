@@ -48,7 +48,7 @@ export default function Feed() {
     let isMounted = true;
     async function loadFeed() {
       try {
-        const res = await searchApi.get("/search/feed");
+        const res = await searchApi.get("/feed");
         const raw = res.data?.results || res.data || [];
         const normalized = raw.map(normalizeRecipe).filter(Boolean);
         const withAuthors = await hydrateAuthors(normalized);

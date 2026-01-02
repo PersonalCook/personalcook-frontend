@@ -99,7 +99,7 @@ export default function SavedRecipes({ recipes }) {
       try {
         setLoading(true);
 
-        const res = await searchApi.get("/search/explore", {
+        const res = await searchApi.get("/explore", {
           params: {
             q: query || undefined,
             category:
