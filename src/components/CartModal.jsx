@@ -18,7 +18,6 @@ export default function CartModal({
   const [success, setSuccess] = useState("");
 
   function closeWithDelay() {
-    // Give the success message a brief moment to show
     setTimeout(() => {
       onClose?.();
     }, 800);

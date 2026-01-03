@@ -28,17 +28,21 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+
       serviceAccountName: {{ include "frontend.serviceAccountName" . }}
+
       {{- with .Values.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+
       containers:
         - name: {{ .Chart.Name }}
           {{- with .Values.securityContext }}
           securityContext:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
 
@@ -51,6 +55,13 @@ spec:
             - name: http
               containerPort: {{ .Values.containerPort }}
               protocol: TCP
+
+          # Mount nginx config override
+          volumeMounts:
+            - name: nginx-conf
+              mountPath: /etc/nginx/conf.d/default.conf
+              subPath: default.conf
+              readOnly: true
 
           {{- with .Values.livenessProbe }}
           livenessProbe:
@@ -67,15 +78,13 @@ spec:
             {{- toYaml . | nindent 12 }}
           {{- end }}
 
-          {{- with .Values.volumeMounts }}
-          volumeMounts:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-
-      {{- with .Values.volumes }}
       volumes:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+        - name: nginx-conf
+          configMap:
+            name: {{ include "frontend.fullname" . }}-nginx
+            items:
+              - key: default.conf
+                path: default.conf
 
       {{- with .Values.nodeSelector }}
       nodeSelector:
