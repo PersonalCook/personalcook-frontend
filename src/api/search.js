@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const baseURL = import.meta.env.VITE_API_SEARCH_URL || "http://localhost:8003";
+const baseURL = "/api/search";
 
 const searchApi = axios.create({ baseURL });
 

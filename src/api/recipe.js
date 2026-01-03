@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const baseURL = import.meta.env.VITE_API_RECIPE_URL || "http://localhost:8001";
+const baseURL = "/api/recipe";
 
 const recipeApi = axios.create({ baseURL });
 
