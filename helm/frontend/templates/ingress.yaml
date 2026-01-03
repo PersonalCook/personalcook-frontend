@@ -1,62 +1,36 @@
-{{- if .Values.ingress.enabled -}}
+{{- if .Values.ingress.enabled }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: {{ include "frontend.fullname" . }}
   labels:
     {{- include "frontend.labels" . | nindent 4 }}
-  {{- with .Values.ingress.annotations }}
   annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: {{ .Values.ingress.rewriteTarget | quote }}
+    {{- with .Values.ingress.annotations }}
     {{- toYaml . | nindent 4 }}
-  {{- end }}
+    {{- end }}
 spec:
-  ingressClassName: {{ .Values.ingress.className | default "nginx" }}
+  ingressClassName: {{ .Values.ingress.className }}
   rules:
-    {{- if .Values.ingress.host }}
-    - host: {{ .Values.ingress.host | quote }}
-      http:
-        paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: {{ include "frontend.fullname" . }}
-                port:
-                  number: {{ .Values.service.port }}
-          {{- range .Values.ingress.apiRoutes }}
-          - path: {{ .path | quote }}
-            pathType: Prefix
-            backend:
-              service:
-                name: {{ .serviceName }}
-                port:
-                  number: {{ .servicePort }}
-          {{- end }}
-    {{- else }}
     - http:
         paths:
-          - path: /
-            pathType: Prefix
-            backend:
-              service:
-                name: {{ include "frontend.fullname" . }}
-                port:
-                  number: {{ .Values.service.port }}
           {{- range .Values.ingress.apiRoutes }}
-          - path: {{ .path | quote }}
-            pathType: Prefix
+          - path: {{ .path }}(/|$)(.*)
+            pathType: ImplementationSpecific
             backend:
               service:
                 name: {{ .serviceName }}
                 port:
                   number: {{ .servicePort }}
           {{- end }}
-    {{- end }}
 
-  {{- if .Values.ingress.tls.enabled }}
-  tls:
-    - hosts:
-        - {{ .Values.ingress.host | quote }}
-      secretName: {{ .Values.ingress.tls.secretName }}
-  {{- end }}
-{{- end -}}
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "frontend.fullname" $ }}
+                port:
+                  number: {{ $.Values.service.port }}
+{{- end }}

@@ -3,7 +3,7 @@ replicaCount: 1
 image:
   repository: piasotlar/personalcook-frontend
   pullPolicy: IfNotPresent
-  tag: "v30"
+  tag: "v32"
 
 imagePullSecrets: []
 
@@ -12,9 +12,7 @@ fullnameOverride: ""
 
 serviceAccount:
   create: true
-  automount: true
-  annotations: {}
-  name: ""
+  name: ""   
 
 podAnnotations: {}
 podLabels: {}
@@ -31,7 +29,7 @@ containerPort: 80
 ingress:
   enabled: true
   className: nginx
-  host: ""    
+  rewriteTarget: "/$2"
   annotations: {}
   tls:
     enabled: false
@@ -48,7 +46,7 @@ ingress:
       serviceName: search-service
       servicePort: 8000
     - path: /api/social
-      serviceName: social-service
+      serviceName: social-service-social-service
       servicePort: 8000
     - path: /api/shopping
       serviceName: shopping-service
@@ -75,4 +73,18 @@ autoscaling:
 nodeSelector: {}
 tolerations: []
 affinity: {}
+
+volumes:
+  - name: nginx-conf
+    configMap:
+      name: frontend-nginx
+      items:
+        - key: default.conf
+          path: default.conf
+
+volumeMounts:
+  - name: nginx-conf
+    mountPath: /etc/nginx/conf.d/default.conf
+    subPath: default.conf
+    readOnly: true
 
