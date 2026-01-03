@@ -1,0 +1,53 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: frontend-api
+  namespace: personalcook
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: "/$2"
+    nginx.ingress.kubernetes.io/proxy-body-size: "20m"
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+          - path: /api/user(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: user-service
+                port:
+                  number: 8000
+
+          - path: /api/recipe(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: recipe-service
+                port:
+                  number: 8000
+
+          - path: /api/search(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: search-service
+                port:
+                  number: 8000
+
+          - path: /api/social(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: social-service-social-service
+                port:
+                  number: 8000
+
+          - path: /api/shopping(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: shopping-service
+                port:
+                  number: 8000

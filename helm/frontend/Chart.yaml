@@ -3,5 +3,5 @@ name: frontend
 description: A Helm chart for Kubernetes
 
 type: application
-version: 0.1.32
-appVersion: "v32"
+version: 0.1.35
+appVersion: "v35"

@@ -1,36 +1,17 @@
-{{- if .Values.ingress.enabled }}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: {{ include "frontend.fullname" . }}
-  labels:
-    {{- include "frontend.labels" . | nindent 4 }}
-  annotations:
-    nginx.ingress.kubernetes.io/use-regex: "true"
-    nginx.ingress.kubernetes.io/rewrite-target: {{ .Values.ingress.rewriteTarget | quote }}
-    {{- with .Values.ingress.annotations }}
-    {{- toYaml . | nindent 4 }}
-    {{- end }}
+  name: frontend-web
+  namespace: personalcook
 spec:
-  ingressClassName: {{ .Values.ingress.className }}
+  ingressClassName: nginx
   rules:
     - http:
         paths:
-          {{- range .Values.ingress.apiRoutes }}
-          - path: {{ .path }}(/|$)(.*)
-            pathType: ImplementationSpecific
-            backend:
-              service:
-                name: {{ .serviceName }}
-                port:
-                  number: {{ .servicePort }}
-          {{- end }}
-
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: {{ include "frontend.fullname" $ }}
+                name: frontend
                 port:
-                  number: {{ $.Values.service.port }}
-{{- end }}
+                  number: 80
