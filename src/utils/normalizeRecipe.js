@@ -3,11 +3,10 @@ import socialApi from "../api/social";
 
 const recipeHost = (import.meta.env.VITE_API_RECIPE_URL || "http://localhost:8001").replace(/\/$/, "");
 
-// Normalize a recipe shape coming from various APIs so components can rely on consistent fields.
+// Normalize a recipe shape from different API
 export function normalizeRecipe(recipe) {
   if (!recipe) return null;
 
-  // Some endpoints wrap the recipe in a `recipe` field; flatten if present.
   const base = recipe.recipe ? { ...recipe.recipe, ...recipe } : recipe;
 
   const nested = base.recipe || {};
@@ -75,7 +74,6 @@ export function normalizeRecipes(list = []) {
   return (list || []).map(normalizeRecipe).filter(Boolean);
 }
 
-// Attach liked/saved flags based on id lists from social API.
 export function attachSocialFlags(recipes = [], likedIds = [], savedIds = []) {
   const liked = new Set(likedIds || []);
   const saved = new Set(savedIds || []);
@@ -91,8 +89,7 @@ export function attachSocialFlags(recipes = [], likedIds = [], savedIds = []) {
   });
 }
 
-// Hydrate author details for recipes that only include user_id.
-// Fetches each unique user_id via userApi and fills author_name/author_username.
+
 export async function hydrateAuthors(recipes = []) {
   const ids = Array.from(
     new Set(
@@ -142,7 +139,6 @@ export async function hydrateAuthors(recipes = []) {
   });
 }
 
-// Hydrate like status per recipe by calling socialApi.
 export async function hydrateLikes(recipes = []) {
   return Promise.all(
     (recipes || []).map(async (r) => {
@@ -166,7 +162,6 @@ export async function hydrateLikes(recipes = []) {
   );
 }
 
-// Hydrate like counts only (useful for detail views).
 export async function hydrateLikeCounts(recipes = []) {
   return Promise.all(
     (recipes || []).map(async (r) => {
@@ -189,7 +184,7 @@ export async function hydrateLikeCounts(recipes = []) {
   );
 }
 
-// Hydrate saved status per recipe by calling socialApi.
+
 export async function hydrateSaved(recipes = []) {
   return Promise.all(
     (recipes || []).map(async (r) => {
@@ -213,8 +208,7 @@ export async function hydrateSaved(recipes = []) {
   );
 }
 
-// Hydrate recipes that are missing an image by calling the provided fetcher.
-// fetchRecipeById should be an async function: (id) => recipeData
+
 export async function hydrateMissingImages(recipes = [], fetchRecipeById) {
   if (!fetchRecipeById) return recipes;
   return Promise.all(
@@ -222,7 +216,6 @@ export async function hydrateMissingImages(recipes = [], fetchRecipeById) {
       if (item?.img || item?.image_url || item?.image) return item;
       try {
         const detail = await fetchRecipeById(item.id);
-        // Merge detail into the existing item so we don't drop hydrated fields (author, likes, etc.)
         return normalizeRecipe({ ...item, ...detail });
       } catch (err) {
         console.error("hydrateMissingImages failed for", item?.id, err);

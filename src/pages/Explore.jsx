@@ -274,15 +274,22 @@ export default function Explore() {
   const visibleRecipes = useMemo(() => {
     let filtered = recipes;
 
-    if (selectedCategories.length > 1) {
+    if (selectedCategories.length >= 1) {
       const catSet = new Set(selectedCategories.map((c) => c.toLowerCase()));
       filtered = filtered.filter((r) =>
         catSet.has((r.category || "").toLowerCase())
       );
     }
-
+    if (maxTime != null) {
+      filtered = filtered.filter((r) => {
+        const minutes =
+          timeToMinutes(r.total_time ?? r.totalTime ?? r.cooking_time ?? r.cookingTime);
+        return minutes <= maxTime;
+      });
+    }
+  
     return filtered;
-  }, [recipes, selectedCategories]);
+  }, [recipes, selectedCategories, maxTime]);
 
 
   return (

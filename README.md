@@ -43,14 +43,7 @@ For local development, the frontend is run using the Vite development server.
 
 ## Configuration
 
-Vite reads environment variables at **build time**.  
-Only variables prefixed with `VITE_` are exposed to the frontend application.
-
-### Local development configuration
-
-When running backend services locally, API URLs typically point to localhost with different ports. These values are intended for local development only.
-
-### Production and Kubernetes configuration
+Vite reads environment variables at build time.  
 
 In Kubernetes, API URLs are configured as relative paths so that requests are routed through the Ingress controller:
 
@@ -61,7 +54,6 @@ In Kubernetes, API URLs are configured as relative paths so that requests are ro
 - VITE_API_SHOPPING_URL=/api/shopping  
 - VITE_USE_MOCK_API=false  
 
-
 ---
 
 ## Kubernetes and Helm deployment
@@ -70,10 +62,10 @@ The frontend is deployed to Kubernetes using a Helm chart.
 
 Key Kubernetes resources include:
 
-- **Deployment**, which runs the Nginx container serving the frontend  
-- **Service**, which exposes the frontend internally within the cluster  
-- **Ingress**, which routes HTTP requests from the outside world to the frontend and backend services  
-- **ConfigMap**, which provides the Nginx configuration including SPA routing fallback  
+- **Deployment**
+- **Service**
+- **Ingress** and **Ingress-api**, which routes HTTP requests from the outside world to the frontend and backend services  
+- **ConfigMap**, which provides the configuration 
 
 Ingress routing rules forward the root path to the frontend service and API paths to the corresponding backend microservices.
 
@@ -83,16 +75,16 @@ Ingress routing rules forward the root path to the frontend service and API path
 
 The frontend depends on the following backend services, which are accessed via the Ingress using relative API paths:
 
-- user service → /api/user  
-- recipe service → /api/recipe  
-- search service → /api/search  
-- social service → /api/social  
-- shopping service → /api/shopping 
+- user service → /api/user → http://user-service:8000
+- recipe service → /api/recipe → http://recipe-service:8000
+- search service → /api/search → http://search-service:8000
+- social service → /api/social → http://social-service:8000
+- shopping service → /api/shopping → http://shopping-service:8000
 
 ---
 
 ## Docker
-This repo ships a Dockerfile and docker-compose for production-like serving via Nginx.
+This repository provides a Dockerfile and a Docker Compose configuration for running the application.
 
 - Build args are used to inject API base URLs:
   - `VITE_API_USER_URL`, `VITE_API_RECIPE_URL`, `VITE_API_SEARCH_URL`,
