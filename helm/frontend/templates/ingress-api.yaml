@@ -1,0 +1,71 @@
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: frontend-api
+  namespace: {{ .Release.Namespace }}
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: "/$2"
+    nginx.ingress.kubernetes.io/proxy-body-size: "20m"
+    {{- if .Values.ingress.sslRedirect }}
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    {{- end }}
+spec:
+  ingressClassName: {{ .Values.ingress.className | default "nginx" }}
+
+  {{- if .Values.ingress.tls.enabled }}
+  tls:
+    - secretName: {{ .Values.ingress.tls.secretName }}
+      {{- if .Values.ingress.host }}
+      hosts:
+        - {{ .Values.ingress.host | quote }}
+      {{- end }}
+  {{- end }}
+
+  rules:
+    - {{- if .Values.ingress.host }}
+      host: {{ .Values.ingress.host | quote }}
+      {{- end }}
+      http:
+        paths:
+          - path: /api/user(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: user-service
+                port:
+                  number: 8000
+
+          - path: /api/recipe(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: recipe-service
+                port:
+                  number: 8000
+
+          - path: /api/search(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: search-service
+                port:
+                  number: 8000
+
+          - path: /api/social(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: social-service-social-service
+                port:
+                  number: 8000
+
+          - path: /api/shopping(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: shopping-service
+                port:
+                  number: 8000
+{{- end }}

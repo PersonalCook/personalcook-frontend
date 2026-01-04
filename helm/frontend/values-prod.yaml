@@ -3,7 +3,7 @@ replicaCount: 1
 image:
   repository: piasotlar/personalcook-frontend
   pullPolicy: IfNotPresent
-  tag: "v32"
+  tag: "v38"
 
 imagePullSecrets: []
 
@@ -30,10 +30,12 @@ ingress:
   enabled: true
   className: nginx
   rewriteTarget: "/$2"
+  host: ""
   annotations: {}
   tls:
-    enabled: false
-    secretName: ""
+    enabled: true
+    secretName: personalcook-tls
+  sslRedirect: true
 
   apiRoutes:
     - path: /api/user

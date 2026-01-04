@@ -265,7 +265,7 @@ export default function UserProfile() {
             </div>
           </div>
 
-          {/* Optional: hide follow button on own profile */}
+          {/* Hide follow button on own profile */}
           {me && String(me.user_id) !== String(id) && (
             <button
               onClick={toggleFollow}

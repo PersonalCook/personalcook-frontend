@@ -31,11 +31,12 @@ ingress:
   enabled: true
   className: nginx
   rewriteTarget: "/$2"
-  annotations:
-    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+  host: ""
+  annotations: {}
   tls:
-    enabled: false
-    secretName: ""
+    enabled: true
+    secretName: personalcook-tls
+  sslRedirect: true
 
   apiRoutes:
     - path: /api/user
